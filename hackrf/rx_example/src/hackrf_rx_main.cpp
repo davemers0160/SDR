@@ -14,10 +14,11 @@
 #include <algorithm>
 #include <complex>
 
-// bladeRF includes
+// HackRF includes
 #include <hackrf.h>
 
 // Custom Includes
+#include <iq_utils.h>
 #include <hackrf_common.h>
 
 // Project Includes
@@ -48,11 +49,9 @@ int rx_callback(hackrf_transfer* transfer)
 int main(int argc, char** argv)
 {
 
-    uint32_t idx;
+    uint32_t idx = 0;
     
     // hackrf specific structs
-    hackrf_device_list_t *hackrf_list;
-    hackrf_transfer hackrf_rx;
     hackrf_device* dev = NULL;
 
     double sample_rate = 10000000;
@@ -63,7 +62,7 @@ int main(int argc, char** argv)
     uint8_t board_id = 0;
 
     // determine how many blocks to capture
-    uint64_t num_blocks = 10;
+    uint64_t num_blocks = 100;
 
     // allocate the memory for the samples, but do not actually init the container
     samples.reserve(num_blocks * block_size);
@@ -98,13 +97,14 @@ int main(int argc, char** argv)
         rv = hackrf_start_rx(dev, rx_callback, NULL);
 
         // wait for the correct number of blocks to be collected
-        idx = 0;
         while (blocks_captured < num_blocks);
-        {
-            ++idx;
-        }
 
+        // stop the receive callback
         rv = hackrf_stop_rx(dev);
+
+        // save the samples to a file
+        std::string save_filename = "../test_hackrf_save.bin";
+        write_iq_data(save_filename, samples);
 
         int bp = 2;
 
