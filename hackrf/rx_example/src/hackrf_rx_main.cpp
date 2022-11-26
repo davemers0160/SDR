@@ -12,6 +12,7 @@
 #include <sstream>
 #include <vector>
 #include <algorithm>
+#include <complex>
 
 // bladeRF includes
 #include <hackrf.h>
@@ -21,11 +22,27 @@
 
 // Project Includes
 
+const uint64_t block_size = 262144 >> 1;
+static std::vector<std::complex<int8_t>> samples;
 
+static uint64_t blocks_captured;
 
 //-----------------------------------------------------------------------------
+int rx_callback(hackrf_transfer* transfer)
+{
+    size_t samples_captured;
 
+    ++blocks_captured;
+    samples_captured = transfer->valid_length>>1;
 
+    std::vector<std::complex<int8_t>> tmp(transfer->buffer, transfer->buffer + samples_captured);
+
+    std::copy(tmp.begin(), tmp.end(), std::back_inserter(samples));
+
+    int bp = 1;
+
+    return 0;
+}   // end of rx_callback
 
 //-----------------------------------------------------------------------------
 int main(int argc, char** argv)
@@ -44,6 +61,12 @@ int main(int argc, char** argv)
     int32_t rv;
 
     uint8_t board_id = 0;
+
+    // determine how many blocks to capture
+    uint64_t num_blocks = 10;
+
+    // allocate the memory for the samples, but do not actually init the container
+    samples.reserve(num_blocks * block_size);
 
     try
     {
@@ -66,9 +89,24 @@ int main(int argc, char** argv)
         }
 
         rv = hackrf_set_sample_rate(dev, sample_rate);
-        rv = hackrf_set_freq(dev, freq);
+        rv |= hackrf_set_freq(dev, freq);
 
+        // set the counter for the number of blocks to zero
+        blocks_captured = 0;
 
+        // HackRF captures data in 262144 byte blocks
+        rv = hackrf_start_rx(dev, rx_callback, NULL);
+
+        // wait for the correct number of blocks to be collected
+        idx = 0;
+        while (blocks_captured < num_blocks);
+        {
+            ++idx;
+        }
+
+        rv = hackrf_stop_rx(dev);
+
+        int bp = 2;
 
     }
     catch (std::exception e)
