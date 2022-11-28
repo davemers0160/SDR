@@ -112,10 +112,14 @@ int main(int argc, char** argv)
     catch (std::exception e)
     {
         std::cout << "error: " << e.what() << std::endl;
+        std::cin.ignore();
     }
     // initialize the hackrf - required before opening
     
     rv = hackrf_close(dev); 
     rv = hackrf_exit();
+
+    std::cout << std::endl << "Program complete.  Press Enter to close..." << std::endl;
+    std::cin.ignore();
     
 }   // end of main
