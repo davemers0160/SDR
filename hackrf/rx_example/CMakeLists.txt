@@ -61,9 +61,6 @@ else()
     
 endif()
 
-# include(${COMMON_ROOT}/cmake_utils/use_cpp_11.cmake)
-# include(${COMMON_ROOT}/cmake_utils/use_sse_avx.cmake)
-
 # look for any *.c and *.cpp files
 file(GLOB SOURCES "src/*.c*"
     "${COMMON_ROOT}/src/*.cpp"
@@ -76,37 +73,10 @@ set(project_includes
     )
 
 message(" ")
-# include(${COMMON_ROOT}/cmake_utils/find_bladerf.cmake)
-# if(BLADERF_FOUND)
-    # set(project_includes ${project_includes} ${BLADERF_INCLUDE_DIRS})
-    # set(project_libs ${project_libs} ${BLADERF_LIBS})
-# endif()
 
-# find_package(ArrayFire)
-# if(ArrayFire_Unified_FOUND)
-    # set(project_includes ${project_includes} ${ArrayFire_INCLUDE_DIRS})
-    # set(project_libs ${project_libs} ArrayFire::af)
-    # message("ArrayFire_Unified found!")
-    # add_definitions(-DUSE_ARRAYFIRE)
-# else()
-    # message("ArrayFire_Unified not found...")
-# endif()
-
-# find OpenCV
-#message(STATUS "--------------------------------------------------------")
-#message(STATUS "Looking for OpenCV installation...")
-#find_package(OpenCV REQUIRED)
-#if (OpenCV_FOUND)
-#	set(project_includes ${project_includes} ${OpenCV_INCLUDE_DIRS})
-#	set(project_libs ${project_libs} ${OpenCV_LIBS})
-#	message(STATUS "Found OpenCV: " ${OpenCV_DIR})
-#else()
-#	message("OpenCV not found...")
-#endif()
-#message(STATUS "--------------------------------------------------------")
 
 #find_package(HACKRF REQUIRED)
-include(../find_HACKRF.cmake)
+include(${PR_ROOT}/common/find_HACKRF.cmake)
 if(HACKRF_FOUND)
 	set(project_includes ${project_includes} ${HACKRF_INCLUDE_DIRS})
 	set(project_libs ${project_libs} ${HACKRF_LIBRARIES})
