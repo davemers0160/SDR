@@ -31,15 +31,44 @@ const std::complex<double> j(0, 1);
 
 const uint64_t block_size = 262144 >> 1;
 static std::vector<std::complex<int8_t>> samples;
-
+static std::vector<std::complex<int8_t>>::iterator samples_itr = samples.begin();
 static uint64_t blocks_captured;
+
+static uint64_t data_index;
+static bool tx_complete;
 
 //-----------------------------------------------------------------------------
 int tx_callback(hackrf_transfer* transfer)
 {
-    size_t bytes_to_read = transfer->buffer_length;
+    size_t bytes_to_xfer = transfer->buffer_length;
+    size_t bytes_remaining = samples.size() - data_index;
 
+
+    // check the current index and the transfer size to see where we are at in the samples
     
+
+    // start at index == 0
+    // if the size of the samples buffer is larger than the transfer->buffer length then fill the transfer buffer
+    // increment the index by the number of bytes_to_xsfer
+    if (bytes_remaining >= bytes_to_xfer)
+    {
+        //std::copy(samples.begin()+data_index, samples.begin() + data_index+ bytes_to_xfer, transfer->buffer);
+        transfer->buffer = reinterpret_cast<uint8_t*>(&samples[data_index]);
+        transfer->valid_length = bytes_to_xfer;
+        data_index += bytes_to_xfer;
+    }
+    else
+    {
+        // if the number of the remaining samples is less than the transfer buffer fill the buffer with just those samples
+        //std::copy(samples.begin() + data_index, samples.begin() + data_index + bytes_remaining, transfer->buffer);
+        transfer->buffer = reinterpret_cast<uint8_t*>(&samples[data_index]); 
+        transfer->valid_length = bytes_remaining;
+        data_index = 0;
+        tx_complete = true;
+    }
+    
+    // set the transfer valid length to the number of remaining bytes
+
 
     return 0;
 }   // end of rx_callback
@@ -101,8 +130,8 @@ int main(int argc, char** argv)
 
     }
 
-    std::string save_filename = "../test_hackrf_save.bin";
-    write_iq_data(save_filename, samples);
+    //std::string save_filename = "../test_hackrf_save.bin";
+    //write_iq_data(save_filename, samples);
 
 
     try
@@ -129,13 +158,15 @@ int main(int argc, char** argv)
         rv |= hackrf_set_freq(dev, freq);
 
         // set the counter for the number of blocks to zero
-        blocks_captured = 0;
+
+        data_index = 0;
+        tx_complete = false;
 
         // HackRF captures data in 262144 byte blocks
         rv = hackrf_start_tx(dev, tx_callback, NULL);
 
         // wait for the correct number of blocks to be collected
-        while (blocks_captured < num_blocks);
+        while (!tx_complete);
 
         // stop the receive callback
         rv = hackrf_stop_tx(dev);
