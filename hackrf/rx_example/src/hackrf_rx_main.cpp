@@ -49,7 +49,7 @@ int rx_callback(hackrf_transfer* transfer)
 
     ++blocks_captured;
     samples_captured = transfer->valid_length;
-    fprintf(stderr, "samples_captured: %d\n", samples_captured);
+    //fprintf(stderr, "samples_captured: %ld\n", samples_captured);
 
     std::vector<uint8_t> tmp(transfer->buffer, transfer->buffer + samples_captured);
 
