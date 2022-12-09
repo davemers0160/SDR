@@ -43,10 +43,11 @@ int32_t select_hackf(hackrf_device** dev)
 
     for (idx = 0; idx < num_devices; ++idx)
     {
-        std::cout << "HackRF Device [" << idx << "]: " << std::string(hackrf_list->serial_numbers[idx]) << std::endl;
+        if(hackrf_list->serial_numbers[idx] != NULL)
+            std::cout << "HackRF Device [" << idx << "]: " << std::string(hackrf_list->serial_numbers[idx]) << std::endl;
     }
 
-    if (num_devices == 1)
+    if ((num_devices == 1) & (hackrf_list->serial_numbers[0] != NULL))
     {
         std::cout << std::endl << "Selecting HackRF[0]" << std::endl;
         rv = hackrf_device_list_open(hackrf_list, 0, dev);
