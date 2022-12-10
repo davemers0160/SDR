@@ -56,6 +56,7 @@ int tx_callback(hackrf_transfer* transfer)
     size_t bytes_remaining = samples.size() - data_index;
     //size_t bytes_to_read;
     //size_t bytes_read;
+    uint64_t idx;
 
     if (tx_complete == true)
         return 0;
@@ -66,8 +67,12 @@ int tx_callback(hackrf_transfer* transfer)
         // start at index == 0
         // if the size of the samples buffer is larger than the transfer->buffer length then fill the transfer buffer
         // increment the index by the number of bytes_to_xsfer
-        std::copy(samples.begin()+data_index, samples.begin() + data_index+ bytes_to_xfer, transfer->buffer);
-        
+        //std::copy(samples.begin()+data_index, samples.begin() + data_index+ bytes_to_xfer, transfer->buffer);
+        for (idx = 0; idx < bytes_to_xfer; ++idx)
+        {
+            transfer->buffer[idx] = samples[data_index + idx];
+        }
+    
         transfer->valid_length = bytes_to_xfer;
         data_index += bytes_to_xfer;
         return 0;
@@ -75,8 +80,12 @@ int tx_callback(hackrf_transfer* transfer)
     else
     {
         // if the number of the remaining samples is less than the transfer buffer fill the buffer with just those samples
-        std::copy(samples.begin() + data_index, samples.begin() + data_index + bytes_remaining, transfer->buffer);
-    
+        //std::copy(samples.begin() + data_index, samples.begin() + data_index + bytes_remaining, transfer->buffer);
+        for (idx = 0; idx < bytes_remaining; ++idx)
+        {
+            transfer->buffer[idx] = samples[data_index + idx];
+        }
+
         // set the transfer valid length to the number of remaining bytes
         transfer->valid_length = bytes_remaining;
         data_index = 0;
