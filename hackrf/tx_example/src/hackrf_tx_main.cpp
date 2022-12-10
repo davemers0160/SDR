@@ -111,7 +111,6 @@ int main(int argc, char** argv)
 
     int32_t rv;
     int bp = 1;
-    uint8_t board_id = 0;
 
     // determine how many blocks to capture
     uint64_t num_blocks = 100;
@@ -165,9 +164,14 @@ int main(int argc, char** argv)
     try
     {
 
-        std::cout << "libhackrf version: " << std::string(hackrf_library_release()) << " " << std::string(hackrf_library_version()) << std::endl << std::endl;
-
         rv = hackrf_init();
+        if (rv != HACKRF_SUCCESS)
+        {
+            std::cout << "error initializing HackRF: " << std::string(hackrf_error_name((enum hackrf_error)rv)) << std::endl;
+            std::cout << "Press enter to close" << std::endl;
+            std::cin.ignore();
+            return -1;
+        }
 
         rv = select_hackf(&dev);
         if (rv != HACKRF_SUCCESS)
@@ -178,15 +182,7 @@ int main(int argc, char** argv)
             return -1;
         }
 
-        rv = hackrf_board_id_read(dev, &board_id);
-        if (rv == HACKRF_SUCCESS)
-        {
-            std::cout << "HackRF board ID: " << std::string(hackrf_board_id_name((enum hackrf_board_id)board_id)) << std::endl;
-        }
-        else
-        {
-            std::cout << "error getting board id: " << std::string(hackrf_error_name((enum hackrf_error)rv)) << std::endl;
-        }
+        get_hack_info(dev);
 
         rv = hackrf_set_sample_rate(dev, sample_rate);
         rv |= hackrf_set_freq(dev, freq);
