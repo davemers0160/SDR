@@ -54,13 +54,11 @@ int tx_callback(hackrf_transfer* transfer)
 {
     size_t bytes_to_xfer = transfer->buffer_length;
     size_t bytes_remaining = samples.size() - data_index;
-    size_t bytes_to_read;
-    size_t bytes_read;
-    unsigned int i;
-    uint64_t idx;
+    //size_t bytes_to_read;
+    //size_t bytes_read;
 
     if (tx_complete == true)
-        transfer->valid_length = 0;
+        return 0;
 
     // check the current index and the transfer size to see where we are at in the samples
     if (bytes_remaining >= bytes_to_xfer)
@@ -208,14 +206,18 @@ int main(int argc, char** argv)
                 sleep_ms(20);
             }
 
-            data_index = 0;
-            tx_complete = false;
+            sleep_ms(10);
 
             // stop the transmit callback
             rv = hackrf_stop_tx(dev);
+
+            sleep_ms(200);
+
             std::cout << "loop #: " << idx << std::endl;
 
-            sleep_ms(500);
+            data_index = 0;
+            tx_complete = false;
+
         }
 
 
