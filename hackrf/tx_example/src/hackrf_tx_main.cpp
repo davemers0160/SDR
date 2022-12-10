@@ -164,6 +164,9 @@ int main(int argc, char** argv)
 
     try
     {
+
+        std::cout << "libhackrf version: " << std::string(hackrf_library_release()) << " " << std::string(hackrf_library_version()) << std::endl << std::endl;
+
         rv = hackrf_init();
 
         rv = select_hackf(&dev);
