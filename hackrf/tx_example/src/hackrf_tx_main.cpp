@@ -194,20 +194,18 @@ int main(int argc, char** argv)
             //return EXIT_FAILURE;
         }
 
-        data_index = 0;
-        tx_complete = false;
-
-        // HackRF sends data in 262144 byte blocks
-        rv = hackrf_start_tx(dev, tx_callback, NULL);
-        if (rv != HACKRF_SUCCESS) 
-        {
-            fprintf(stderr, "hackrf_start_?x() failed: %s (%d)\n", hackrf_error_name((enum hackrf_error)rv), rv);
-            //return EXIT_FAILURE;
-        }
             
         for (idx = 0; idx < 20; ++idx)
         {
+            data_index = 0;
+            tx_complete = false;
+
             rv = hackrf_start_tx(dev, tx_callback, NULL);
+            if (rv != HACKRF_SUCCESS) 
+            {
+                fprintf(stderr, "hackrf_start_tx() failed: %s (%d)\n", hackrf_error_name((enum hackrf_error)rv), rv);
+                //return EXIT_FAILURE;
+            }
 
             //while ((hackrf_is_streaming(dev) == HACKRF_TRUE));
             while (!tx_complete)
@@ -219,16 +217,16 @@ int main(int argc, char** argv)
 
             // stop the transmit callback
             rv = hackrf_stop_tx(dev);
+            if (rv != HACKRF_SUCCESS)
+            {
+                fprintf(stderr, "hackrf_stop_tx() failed: %s (%d)\n", hackrf_error_name((enum hackrf_error)rv), rv);
+                //return EXIT_FAILURE;
+            }
 
             sleep_ms(200);
 
             std::cout << "loop #: " << idx << std::endl;
-
-            data_index = 0;
-            tx_complete = false;
-
         }
-
 
     }
     catch (std::exception e)
@@ -239,6 +237,7 @@ int main(int argc, char** argv)
     rv = hackrf_close(dev); 
     rv = hackrf_exit();
     
-
+    std::cout << std::endl << "Program complete!  Pressenter to close..." << std::endl;
+    std::cin.ignore();
 
 }   // end of main
