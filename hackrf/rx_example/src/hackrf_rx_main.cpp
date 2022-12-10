@@ -86,22 +86,24 @@ int main(int argc, char** argv)
     try
     {
         rv = hackrf_init();
+        if (rv != HACKRF_SUCCESS)
+        {
+            std::cout << "error initializing HackRF: " << std::string(hackrf_error_name((enum hackrf_error)rv)) << std::endl;
+            std::cout << "Press enter to close" << std::endl;
+            std::cin.ignore();
+            return -1;
+        }
 
         rv = select_hackf(&dev);
         if (rv != HACKRF_SUCCESS)
         {
             std::cout << "error opening HackRF: " << std::string(hackrf_error_name((enum hackrf_error)rv)) << std::endl;
+            std::cout << "Press enter to close" << std::endl;
+            std::cin.ignore();
+            return -1;
         }
 
-        rv = hackrf_board_id_read(dev, &board_id);
-        if (rv == HACKRF_SUCCESS)
-        {
-            std::cout << "HackRF board ID: " << std::string(hackrf_board_id_name((enum hackrf_board_id)board_id)) << std::endl;
-        }
-        else
-        {
-            std::cout << "error getting board id: " << std::string(hackrf_error_name((enum hackrf_error)rv)) << std::endl;
-        }
+        get_hack_info(dev);
 
         rv = hackrf_set_sample_rate(dev, sample_rate);
         rv |= hackrf_set_freq(dev, freq);
