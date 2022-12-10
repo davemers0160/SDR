@@ -110,8 +110,8 @@ int main(int argc, char** argv)
     std::complex<double> tmp_val;
 
     //generate IQ samples - simple FSK
-    uint32_t data = 0xAB42F58C;     // random 32-bit data
-    uint32_t bit_mask = 1;
+    uint64_t data = 0xAB42F58C15ACFE37;     // random 32-bit data
+    uint64_t bit_mask = 1;
 
     // the number of samples per bit
     double bit_length = 1e-2;
@@ -203,10 +203,10 @@ int main(int argc, char** argv)
             //while ((hackrf_is_streaming(dev) == HACKRF_TRUE));
             while (!tx_complete)
             {
-                sleep_ms(20);
+                sleep_ms(50);
             }
 
-            sleep_ms(10);
+            sleep_ms(20);
 
             // stop the transmit callback
             rv = hackrf_stop_tx(dev);
