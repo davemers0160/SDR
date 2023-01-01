@@ -51,7 +51,7 @@ void receive_data(uhd::usrp::multi_usrp::sptr usrp,
 )
 {
     uint64_t num_total_samps = 0;
-    std::string cpu_format = "fc32";      //"";        // complex<int16_t>
+    std::string cpu_format = "sc16";        //"";        // complex<int16_t>
     std::string wire_format = "sc16";       // Q16 I16
     bool enable_size_map = false;
     bool continue_on_bad_packet = false;
@@ -65,6 +65,9 @@ void receive_data(uhd::usrp::multi_usrp::sptr usrp,
         stream_args.channels = channel_nums;
         uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
 
+        samps_per_buff = rx_stream->get_max_num_samps();
+        std::cout << "Max number of samples per buffer: " << samps_per_buff << std::endl;
+        
         uhd::rx_metadata_t md;
         std::vector<std::complex<int16_t>> buff(samps_per_buff);
 
@@ -108,8 +111,6 @@ void receive_data(uhd::usrp::multi_usrp::sptr usrp,
                 std::string error_str = "Got an overflow indication. Please consider the following:\n";
                 error_str += "  Your write medium must sustain a rate of " + std::to_string((usrp->get_rx_rate(channel) * sizeof(std::complex<int16_t>) / 1.0e6)) + "MB / s.\n";
                 error_str += "  Dropped samples will not be written to the file.\n";
-                error_str += "  Please modify this example for your purposes.\n";
-                error_str += "  This message will not appear again.\n";
 
                 std::cerr << error_str << std::endl;
                 continue;
@@ -152,7 +153,7 @@ int main(int argc, char** argv)
     
     std::string args;
 
-    double sample_rate = 8000000;
+    double sample_rate = 4000000;
 
     uint32_t channel = 0;
     double freq = 314500000;
@@ -201,8 +202,8 @@ int main(int argc, char** argv)
 
         // create a receive streamer
         // linearly map channels (index0 = channel0, index1 = channel1, ...)
-        std::string format = "sc16";
-        uhd::stream_args_t stream_args(format); // complex floats
+        //std::string format = "sc16";
+        //uhd::stream_args_t stream_args(format); // complex floats
 
 
         // received the samples
@@ -210,7 +211,7 @@ int main(int argc, char** argv)
         receive_data(usrp, channel, samps_per_buff, num_samples, samples);
 
         // save the samples to a file
-        std::cout << std::endl << "num samples captured: " << num_samples << "/" << samples.size() << std::endl;
+        std::cout << std::endl << "num samples captured: " << samples.size() << "/" << num_samples << std::endl;
 
         std::string save_filename = "../test_b205mini_save.bin";
         write_qi_data(save_filename, samples);
