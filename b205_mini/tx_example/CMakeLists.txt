@@ -19,8 +19,8 @@
 
 cmake_minimum_required(VERSION 2.8.12)
 
-PROJECT(b205mini_rx_example)
-set(exe_name "b205m_rx")
+PROJECT(b205mini_tx_example)
+set(exe_name "b205m_tx")
 
 set(PLATFORM "$ENV{PLATFORM}" CACHE INTERNAL "Copied from environment variable")
 if("${PLATFORM}" STREQUAL "")
