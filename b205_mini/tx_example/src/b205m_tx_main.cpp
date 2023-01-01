@@ -29,6 +29,14 @@
 
 // Project Includes
 
+
+//-----------------------------------------------------------------------------
+const double pi2 = 2.0 * 3.14159265358979323846;
+const std::complex<double> j(0, 1);
+
+static uint64_t data_index;
+static bool tx_complete;
+
 //-----------------------------------------------------------------------------
 inline void sleep_ms(uint32_t value)
 {
@@ -43,106 +51,111 @@ inline void sleep_ms(uint32_t value)
 }   // end of sleep_ms
 
 //-----------------------------------------------------------------------------
-void receive_data(uhd::usrp::multi_usrp::sptr usrp,
-    const size_t& channel,
-    size_t samps_per_buff,
-    unsigned long long num_requested_samples,
-    std::vector<std::complex<int16_t>> &samples
-)
+void generate_fsk(double sample_rate, std::vector<std::complex<int16_t>> &samples, double freq_offset = 25000.0, double bit_length = 1e-2, double amplitude = 2000)
 {
-    uint64_t num_total_samps = 0;
-    std::string cpu_format = "fc32";      //"";        // complex<int16_t>
-    std::string wire_format = "sc16";       // Q16 I16
-    bool enable_size_map = false;
-    bool continue_on_bad_packet = false;
+    uint64_t idx, jdx;
 
-    try
+    //generate IQ samples - simple FSK
+    uint64_t data = 0xAB42F58C15ACFE37;     // random 32-bit data
+    uint64_t bit_mask = 1;
+    std::complex<double> tmp_val;
+
+    // clear out the samples
+    samples.clear();
+
+    // the number of samples per bit
+    uint32_t bit_samples = (uint32_t)(sample_rate * bit_length);
+
+    // the frequency offset for the FSK modulation - 100kHz, normalized by the sample rate
+    freq_offset = freq_offset / sample_rate;
+
+    for (idx = 0; idx < sizeof(data) * 8; ++idx)
     {
-        // create a receive streamer
-        uhd::stream_args_t stream_args(wire_format);
-        std::vector<size_t> channel_nums;
-        channel_nums.push_back(channel);
-        stream_args.channels = channel_nums;
-        uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
-
-        uhd::rx_metadata_t md;
-        std::vector<std::complex<int16_t>> buff(samps_per_buff);
-
-        //bool overflow_message = true;
-
-        // setup streaming
-        uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
-
-        stream_cmd.num_samps = size_t(num_requested_samples);
-        stream_cmd.stream_now = true;
-        stream_cmd.time_spec = uhd::time_spec_t();
-        rx_stream->issue_stream_cmd(stream_cmd);
-
-        //typedef std::map<size_t, size_t> SizeMap;
-        //SizeMap mapSizes;
-        //const auto start_time = std::chrono::steady_clock::now();
-        //const auto stop_time = start_time + std::chrono::milliseconds(int64_t(1000));
-
-        // Track time and samps between updating the BW summary
-        //auto last_update = start_time;
-        //unsigned long long last_update_samps = 0;
-
-        samples.clear();
-
-        // Run this loop until either time expired (if a duration was given), until
-        // the requested number of samples were collected (if such a number was
-        // given), or until Ctrl-C was pressed.
-        while (num_total_samps < num_requested_samples)
+        // if true this is a one
+        if (data & bit_mask)
         {
-            //const auto now = std::chrono::steady_clock::now();
-
-            size_t num_rx_samps = rx_stream->recv(&buff.front(), buff.size(), md, 3.0, enable_size_map);
-
-            if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
-                std::cout << "Timeout while streaming" << std::endl;
-                break;
-            }
-
-            if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW)
+            for (jdx = 0; jdx < bit_samples; ++jdx)
             {
-                std::string error_str = "Got an overflow indication. Please consider the following:\n";
-                error_str += "  Your write medium must sustain a rate of " + std::to_string((usrp->get_rx_rate(channel) * sizeof(std::complex<int16_t>) / 1.0e6)) + "MB / s.\n";
-                error_str += "  Dropped samples will not be written to the file.\n";
-                error_str += "  Please modify this example for your purposes.\n";
-                error_str += "  This message will not appear again.\n";
-
-                std::cerr << error_str << std::endl;
-                continue;
+                tmp_val = amplitude * (std::exp(j * pi2 * freq_offset * (double)jdx));
+                samples.push_back(std::complex<int16_t>((int16_t)tmp_val.imag(), (int16_t)tmp_val.real()));
             }
-
-            if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) {
-                std::string error_str = "Receiver error: " + md.strerror();
-
-                if (continue_on_bad_packet) {
-                    std::cerr << error_str << std::endl;
-                    continue;
-                }
-                else
-                    throw std::runtime_error(error_str);
-            }
-
-            num_total_samps += num_rx_samps;
-
-            std::copy(buff.begin(), buff.end(), std::back_inserter(samples));
         }
-        //const auto actual_stop_time = std::chrono::steady_clock::now();
+        // if not this is a zero
+        else
+        {
+            for (jdx = 0; jdx < bit_samples; ++jdx)
+            {
+                tmp_val = amplitude * (std::exp(j * pi2 * (-freq_offset) * (double)jdx));
+                samples.push_back(std::complex<int16_t>((int16_t)tmp_val.imag(), (int16_t)tmp_val.real()));
+            }
+        }
 
-        stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
-        rx_stream->issue_stream_cmd(stream_cmd);
+        bit_mask <<= 1;
     }
-    catch (std::exception& e)
+
+}   // end of generate_fsk
+
+
+//-----------------------------------------------------------------------------
+void send_data(uhd::tx_streamer::sptr tx_stream, std::vector<std::complex<int16_t>>&samples, size_t samps_per_buff)
+{
+    uint64_t idx;
+    //size_t bytes_to_xfer = samps_per_buff;
+    size_t bytes_remaining = samples.size() - data_index;
+    size_t num_tx_samps;
+    size_t samples_sent;
+
+    uhd::tx_metadata_t md;
+    md.start_of_burst = false;
+    md.end_of_burst = false;
+
+    std::vector<std::complex<int16_t>> buffer(samps_per_buff);
+
+    // loop until all of the data has been sent
+    while (!md.end_of_burst) 
     {
-        std::string error_string = "Error: " + std::string(e.what()) + "\n";
-        error_string += "File: " + std::string(__FILE__) + ", Function: " + std::string(__FUNCTION__) + ", Line #: " + std::to_string(__LINE__);
-        std::cout << error_string << std::endl;
+        // check the current index and the transfer size to see where we are at in the samples
+        if (bytes_remaining >= samps_per_buff)
+        {
+            // start at index == 0
+            // if the size of the samples buffer is larger than the transfer->buffer length then fill the transfer buffer
+            // increment the index by the number of bytes_to_xsfer
+            for (idx = 0; idx < samps_per_buff; ++idx)
+            {
+                buffer[idx] = samples[data_index + idx];
+            }
+
+            samples_sent = tx_stream->send(&buffer.front(), samps_per_buff, md);
+
+            data_index += samps_per_buff;
+            bytes_remaining = samples.size() - data_index;
+        }
+        else
+        {
+            // if the number of the remaining samples is less than the transfer buffer fill the buffer with just those samples
+            for (idx = 0; idx < bytes_remaining; ++idx)
+            {
+                buffer[idx] = samples[data_index + idx];
+            }
+
+            // set the transfer valid length to the number of remaining bytes
+            samples_sent = tx_stream->send(&buffer.front(), bytes_remaining, md);
+
+            data_index = 0;
+            tx_complete = true;
+            md.end_of_burst = true;
+        }
+
+        //if (samples_sent != num_tx_samps) {
+        //    UHD_LOG_ERROR("TX-STREAM",
+        //        "The tx_stream timed out sending " << num_tx_samps << " samples ("
+        //        << samples_sent << " sent).");
+        //    return;
+        //}
+
     }
 
-}
+}   // end of send_data
 
 //-----------------------------------------------------------------------------
 int main(int argc, char** argv)
@@ -156,7 +169,7 @@ int main(int argc, char** argv)
 
     uint32_t channel = 0;
     double freq = 314500000;
-    double rx_gain = 20;
+    double tx_gain = 20;
     double bw;
     double lo_offset = 0.0;
 
@@ -167,8 +180,11 @@ int main(int argc, char** argv)
     uint64_t num_samples = (uint64_t)(1.0 * sample_rate);
 
     // allocate the memory for the samples, but do not actually init the container
-    static std::vector<std::complex<int16_t>> samples;
-    samples.reserve(num_samples);
+    std::vector<std::complex<int16_t>> samples;
+//    std::vector<std::complex<int16_t>> samples;
+//    samples.reserve(num_samples);
+
+    generate_fsk(sample_rate, samples);
 
     try
     {
@@ -180,40 +196,51 @@ int main(int argc, char** argv)
         //std::cout << "Using Device: " << usrp->get_pp_string() << std::endl << std::endl;
 
         // set the samplerate
-        usrp->set_rx_rate(sample_rate, channel);
-        std::cout << "Actual RX Rate: " << (usrp->get_rx_rate(channel) / 1e6) << " MHz" << std::endl << std::endl;
+        usrp->set_tx_rate(sample_rate, channel);
+        std::cout << "Actual TX Samplerate: " << (usrp->get_tx_rate(channel) / 1e6) << " MHz" << std::endl << std::endl;
 
         // set the center frequency and LO offset
         uhd::tune_request_t tune_request(freq, lo_offset);
-        usrp->set_rx_freq(tune_request, channel);
-        std::cout << "Actual RX Freq: " << (usrp->get_rx_freq(channel) / 1e6) << " MHz" << std::endl << std::endl;
+        usrp->set_tx_freq(tune_request, channel);
+        std::cout << "Actual TX Freq: " << (usrp->get_tx_freq(channel) / 1e6) << " MHz" << std::endl << std::endl;
 
-        // set the rx gain
-        usrp->set_rx_gain(rx_gain, channel);
-        std::cout << "Actual RX Gain: " <<  usrp->get_rx_gain(channel) << " dB" << std::endl << std::endl;
+        // set the tx gain
+        usrp->set_tx_gain(tx_gain, channel);
+        std::cout << "Actual TX Gain: " <<  usrp->get_tx_gain(channel) << " dB" << std::endl << std::endl;
 
         // set the antenna
-        //usrp->set_rx_antenna(ant, channel);
+        std::string ant = usrp->get_tx_antenna(channel);
+        usrp->set_tx_antenna(ant, channel);
 
-        std::cout << std::endl << "Press enter to collect." << std::endl;
+        std::string cpu_format = "sc16";
+        std::string wire_format = "sc16";
+        uhd::stream_args_t stream_args(cpu_format, wire_format);
+        std::vector<size_t> channel_nums;
+        channel_nums.push_back(channel);
+        stream_args.channels = channel_nums;
+        uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
+
+        size_t samps_per_buff = tx_stream->get_max_num_samps();
+
+        std::cout << std::endl << "Press enter to transmit." << std::endl;
         std::cin.ignore();
 
+        for (idx = 0; idx < 20; ++idx)
+        {
+            data_index = 0;
+            tx_complete = false;
 
-        // create a receive streamer
-        // linearly map channels (index0 = channel0, index1 = channel1, ...)
-        std::string format = "sc16";
-        uhd::stream_args_t stream_args(format); // complex floats
+            send_data(tx_stream, samples, samps_per_buff);
+            while (!tx_complete)
+            {
+                sleep_ms(50);
+            }
 
+            sleep_ms(200);
 
-        // received the samples
-        uint64_t samps_per_buff = 4096 * 8;
-        receive_data(usrp, channel, samps_per_buff, num_samples, samples);
+            std::cout << "loop #: " << idx << std::endl;
+        }
 
-        // save the samples to a file
-        std::cout << std::endl << "num samples captured: " << num_samples << "/" << samples.size() << std::endl;
-
-        std::string save_filename = "../test_b205mini_save.bin";
-        write_qi_data(save_filename, samples);
 
         int bp = 2;
 

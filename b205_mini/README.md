@@ -25,9 +25,22 @@ Once the software is installed restart the computer.
 
 After the restart plug in the B205mini and check that the drivers installed correctly using the Device Manager.  If you see "Westbridge" and a yellow exclamation next to it then you need to install libusb.  Download the latest verson of [Zadig](https://github.com/pbatard/libwdi/releases/) and run it.  Select the WestBridge device from the dropdown menu and then select WinUSB from the list of drivers.  Click the install button and wait for it to finish the install.
 
-### Linux
+### Linux - Ubuntu 20.04
 Notes:
+There are two different ways to install the UHD support on Ubuntu.  the first is through the default package manager configuration.  This will work, but the libraries and drivers may not be the most up-to-date from Ettus.  The second way is to add the Ettus PPA.  This will allow you to get updates as Ettus makes them.  Run the following commands:
 
+'''
+sudo add-apt-repository ppa:ettusresearch/uhd
+sudo apt-get update
+sudo apt-get install -y libuhd-dev uhd-host
+'''
+
+
+
+
+Boost Install
+sudo apt-get install -y libboost-all-dev
+for Ubuntu 20.04 the package manager will install Boost version 1.71.0
 
 ## UHD API
 The full API is located here: [UHD Development Manual](https://files.ettus.com/manual/page_uhd.html)
