@@ -33,7 +33,7 @@ message("Platform: " ${PLATFORM})
 string(FIND ${PROJECT_SOURCE_DIR} "/" INDEX REVERSE)
 string(SUBSTRING ${PROJECT_SOURCE_DIR} 0 ${INDEX} PR_ROOT)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(WIN32)
@@ -75,6 +75,7 @@ set(project_includes
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PR_ROOT}/common/")
 
 # find the UHD API & driver, minimum is 4.0.0
+option(UHD_USE_STATIC_LIBS OFF)
 find_package(UHD 4.0.0 REQUIRED)
 if(UHD_FOUND)
 	set(project_includes ${project_includes} ${UHD_INCLUDE_DIRS})
@@ -101,6 +102,7 @@ set(project_includes ${project_includes} ${Boost_INCLUDE_DIRS})
 set(project_libs ${project_libs} ${Boost_LIBRARIES})
 
 link_directories(${Boost_LIBRARY_DIRS})
+message(STATUS "Boost_LIBRARY_DIRS: " ${Boost_LIBRARY_DIRS})
 
 message(" ")
 message(STATUS "--------------------------------------------------------")
@@ -132,9 +134,11 @@ message(" ")
 
 include_directories(${project_includes})
 add_executable(${exe_name} ${SOURCES})
+#set_target_properties(${exe_name} PROPERTIES COMPILE_DEFINITIONS UHD_STATIC_LIB)
 target_link_libraries(${exe_name} ${project_libs})
 
 if(WIN32)
+
     message(STATUS "MSVC Version: " ${MSVC_VERSION})
     # uncomment for MSVC and cmake greater than 3.6.0
     set(default_build_type "Release")
