@@ -210,6 +210,7 @@ int main(int argc, char** argv)
 
         // set the antenna
         std::string ant = usrp->get_tx_antenna(channel);
+        std::cout << "Antenna: " << ant << std::endl;
         usrp->set_tx_antenna(ant, channel);
 
         std::string cpu_format = "sc16";
