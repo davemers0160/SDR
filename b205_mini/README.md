@@ -28,7 +28,7 @@ After the restart plug in the B205mini and check that the drivers installed corr
 
 ### Linux - Ubuntu 20.04
 Notes:
-- There are two different ways to install the UHD support on Ubuntu.  the first is through the default package manager configuration.  This will work, but the libraries and drivers may not be the most up-to-date from Ettus.  The second way is to add the Ettus PPA.  This will allow you to get updates as Ettus makes them.  Run the following commands:
+- There are two different ways to install the UHD support on Ubuntu.  The first is through the default package manager configuration.  This will work, but the libraries and drivers may not be the most up-to-date from Ettus.  The second way is to add the Ettus PPA.  This will allow you to get updates as Ettus makes them.  Run the following commands:
 
 ```
 sudo add-apt-repository ppa:ettusresearch/uhd
@@ -51,7 +51,7 @@ A knowledge base for the B205mini can be found here: https://kb.ettus.com/B200/B
 ## Projects
 
 ### rx_example
-This is a simple example that shows how to do very basic operations using the UHD library.  The code will tune the SDR, set the samplerate and receive gain.  It will record approximately 1 seconds worth of data.
+This is a simple example that shows how to do very basic operations using the UHD library.  The code will tune the SDR, set the samplerate and receive gain.  It will record approximately 1 second worth of IQ data.
 
 ### tx_example
 This is a simple example that shows how to do very basic operations using the UHD library.  The code will tune the SDR, set the samplerate and transmit gain.  It will then send 20 FSK bursts and stop.
