@@ -45,7 +45,6 @@ inline void sleep_ms(uint32_t value)
 //-----------------------------------------------------------------------------
 void receive_data(uhd::usrp::multi_usrp::sptr usrp,
     const size_t& channel,
-    size_t samps_per_buff,
     unsigned long long num_requested_samples,
     std::vector<std::complex<int16_t>> &samples
 )
@@ -65,7 +64,7 @@ void receive_data(uhd::usrp::multi_usrp::sptr usrp,
         stream_args.channels = channel_nums;
         uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
 
-        samps_per_buff = rx_stream->get_max_num_samps();
+        size_t samps_per_buff = rx_stream->get_max_num_samps();
         std::cout << "Max number of samples per buffer: " << samps_per_buff << std::endl;
         
         uhd::rx_metadata_t md;
@@ -194,21 +193,15 @@ int main(int argc, char** argv)
         std::cout << "Actual RX Gain: " <<  usrp->get_rx_gain(channel) << " dB" << std::endl << std::endl;
 
         // set the antenna
-        //usrp->set_rx_antenna(ant, channel);
+        std::string ant = usrp->get_rx_antenna(channel);
+        std::cout << "Antenna: " << ant << std::endl;
+        usrp->set_rx_antenna(ant, channel);
 
         std::cout << std::endl << "Press enter to collect." << std::endl;
         std::cin.ignore();
 
-
-        // create a receive streamer
-        // linearly map channels (index0 = channel0, index1 = channel1, ...)
-        //std::string format = "sc16";
-        //uhd::stream_args_t stream_args(format); // complex floats
-
-
         // received the samples
-        uint64_t samps_per_buff = 4096 * 8;
-        receive_data(usrp, channel, samps_per_buff, num_samples, samples);
+        receive_data(usrp, channel, num_samples, samples);
 
         // save the samples to a file
         std::cout << std::endl << "num samples captured: " << samples.size() << "/" << num_samples << std::endl;
