@@ -15,10 +15,10 @@ Notes:
 - Select the install version that corresponds with the version of Visual Studio that you have installed.  If the version of Visual Studio installed on your system is greater than the available driver version select the closest UHD version possible.
 - During the install you will be asked to add UHD to the system path.  Add it for all users.
 - Select the default install location and do a full install
-- The standard install will only include the release versions of the UHD library.  This is important because debugging code in certains instances will cause the program to crash because of the debug/release mis-match.  To get the debug version of the UHD library you will need to build the library.
+- The standard install will only include the release version of the UHD library.  This is important because debugging code in certain instances will cause the program to crash because of the debug/release mis-match.  To get the debug version of the UHD library you will need to build the library.
 
 Boost Install
-- None of the docs indicate that Boost is required to compile/run anything with the UHD driver.  Download and install from here: https://www.boost.org/users/download/  Select the binaries option and then pick the appropriate boost version for your PC.  Be sure to select the boost version according to your Visual Studio version.
+- None of the docs indicate that Boost is required to compile/run anything that uses the UHD driver.  However, you will need the boost library.  Download and install from here: https://www.boost.org/users/download/  Select the binaries option and then pick the appropriate boost version for your PC.  Be sure to select the boost version according to your Visual Studio version.
 
 https://www.boost.org/doc/libs/1_81_0/more/getting_started/unix-variants.html
 
