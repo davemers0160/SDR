@@ -173,8 +173,17 @@ int main(int argc, char** argv)
     double bw;
     double lo_offset = 0.0;
 
-    int32_t rv;
+    // initialize a random number generator
+    srand((unsigned)time(NULL));
+    double rng_offset = 5e4;
+    int32_t range = 20;
+    double freq_offset;
 
+
+    for (idx = 0; idx < 20; ++idx)
+    {
+        freq_offset = (rng_offset * (rand() % range));
+    }
 
     // determine how many blocks to capture
     uint64_t num_samples = (uint64_t)(1.0 * sample_rate);
@@ -184,7 +193,7 @@ int main(int argc, char** argv)
 //    std::vector<std::complex<int16_t>> samples;
 //    samples.reserve(num_samples);
 
-    generate_fsk(sample_rate, samples);
+    generate_fsk(sample_rate, samples, 5000);
 
     try
     {
@@ -226,8 +235,14 @@ int main(int argc, char** argv)
         std::cout << std::endl << "Press enter to transmit." << std::endl;
         std::cin.ignore();
 
+
+        freq = 314000000;
+
         for (idx = 0; idx < 20; ++idx)
         {
+            uhd::tune_request_t tune_request(freq + freq_offset, lo_offset);
+            usrp->set_tx_freq(tune_request, channel);
+
             data_index = 0;
             tx_complete = false;
 
@@ -237,6 +252,8 @@ int main(int argc, char** argv)
                 sleep_ms(50);
             }
 
+            freq_offset = rng_offset * idx;
+            //freq_offset = (rng_offset * (rand() % range));
             sleep_ms(200);
 
             std::cout << "loop #: " << idx << std::endl;
