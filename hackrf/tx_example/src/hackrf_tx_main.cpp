@@ -118,7 +118,7 @@ int main(int argc, char** argv)
     std::complex<double> tmp_val;
 
     //generate IQ samples - simple FSK
-    uint64_t data = 0xAB42F58C15ACFE37;     // random 32-bit data
+    uint64_t data = 0xAB42F58C15ACFE37;     // random 64-bit data
     uint64_t bit_mask = 1;
 
     // the number of samples per bit
