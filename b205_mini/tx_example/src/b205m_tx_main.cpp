@@ -146,14 +146,9 @@ void send_data(uhd::tx_streamer::sptr tx_stream, std::vector<std::complex<int16_
             md.end_of_burst = true;
         }
 
-        //if (samples_sent != num_tx_samps) {
-        //    UHD_LOG_ERROR("TX-STREAM",
-        //        "The tx_stream timed out sending " << num_tx_samps << " samples ("
-        //        << samples_sent << " sent).");
-        //    return;
-        //}
-
     }
+
+    tx_stream->send("", 0, md);
 
 }   // end of send_data
 
@@ -249,7 +244,7 @@ int main(int argc, char** argv)
             send_data(tx_stream, samples, samps_per_buff);
             while (!tx_complete)
             {
-                sleep_ms(50);
+                sleep_ms(20);
             }
 
             freq_offset = rng_offset * idx;
@@ -260,6 +255,7 @@ int main(int argc, char** argv)
         }
 
 
+        
         int bp = 2;
 
     }

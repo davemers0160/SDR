@@ -94,8 +94,9 @@ set(UHD_BOOST_REQUIRED_COMPONENTS
 )
 set(BOOST_MIN_VERSION 1.65)
 find_package(Boost ${BOOST_MIN_VERSION} COMPONENTS ${UHD_BOOST_REQUIRED_COMPONENTS} REQUIRED
-    HINTS "C:/local/boost_1_81_0/stage/lib/cmake")
-
+    HINTS "C:/local/boost_1_81_0/lib64-msvc-14.2/cmake/Boost-1.81.0"
+    )
+    
 #include(UHDBoost "c:/local/boost_1_81_0/")
 
 set(project_includes ${project_includes} ${Boost_INCLUDE_DIRS})
