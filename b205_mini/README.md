@@ -17,14 +17,14 @@ Notes:
 - Select the default install location and do a full install
 - The standard install will only include the release version of the UHD library.  This is important because debugging code in certain instances will cause the program to crash because of the debug/release mis-match.  To get the debug version of the UHD library you will need to build the library.
 
-Boost Install
-- None of the docs indicate that Boost is required to compile/run anything that uses the UHD driver.  However, you will need the boost library.  Download and install from here: https://www.boost.org/users/download/  Select the binaries option and then pick the appropriate boost version for your PC.  Be sure to select the boost version according to your Visual Studio version.
+After the restart plug in the B205mini and check that the drivers installed correctly using the Device Manager.  If you see "Westbridge" and a yellow exclamation next to it then you need to install the drivers.  There are two options to install LibUSB:
+1. WinUSB - Download the [Ettus Driver](http://files.ettus.com/binaries/misc/erllc_uhd_winusb_driver.zip) and follow the [instructions](https://files.ettus.com/manual/page_transport.html#transport_usb_installwin)
+2. LibUSB - Download the latest verson of [Zadig](https://github.com/pbatard/libwdi/releases/) and run it.  Select the WestBridge device from the dropdown menu and then select WinUSB from the list of drivers.  Click the install button and wait for it to finish the install.
 
-https://www.boost.org/doc/libs/1_81_0/more/getting_started/unix-variants.html
+Boost Install
+- None of the docs indicate that Boost is required to compile/run anything that uses the UHD driver.  However, you will need the boost library.  Download and install from here: https://www.boost.org/users/download/  Look for the prebuilt windows binaries link and then pick the appropriate boost version for your PC.  Be sure to select the boost version according to your Visual Studio version.
 
 Once the software is installed restart the computer.
-
-After the restart plug in the B205mini and check that the drivers installed correctly using the Device Manager.  If you see "Westbridge" and a yellow exclamation next to it then you need to install libusb.  Download the latest verson of [Zadig](https://github.com/pbatard/libwdi/releases/) and run it.  Select the WestBridge device from the dropdown menu and then select WinUSB from the list of drivers.  Click the install button and wait for it to finish the install.
 
 ### Linux - Ubuntu 20.04
 Notes:
@@ -42,6 +42,8 @@ Boost Install
 ```
 sudo apt-get install -y libboost-all-dev
 ```
+
+There's another option to follow the instrutions laid out here: https://www.boost.org/doc/libs/1_81_0/more/getting_started/unix-variants.html
 
 ## UHD API
 The full API is located here: [UHD Development Manual](https://files.ettus.com/manual/page_uhd.html)
