@@ -1,0 +1,25 @@
+# bladerf input parameters
+
+# line 0: RF Frequency (Hz)
+#137500000
+#1694000000
+#137800000
+314500000
+
+# line 1: sample rate (Sps)
+#2000000
+#624000
+2000000
+
+# line 2: Size of the input filter (Hz)
+#1000000
+2000000
+
+# line 3: gain on the RX channel
+20
+
+# line 4: record time (s)
+1
+
+# line 5: save file
+../recordings/314M500_1M000__1s_20221204_1208.bin

@@ -1,0 +1,27 @@
+
+# setup the rx side
+set frequency rx 2000M
+set samplerate rx 40.0M
+set bandwidth rx 20.0M
+set agc off
+set gain rx 40
+rx config file=rx_samples.bin format=bin n=1000000 samples=2048 buffers=16 xfers=8 timeout=100000 channel=1
+rx start
+rx wait
+
+rx config file=rx_samples.bin format=bin n=10000000 samples=2048 buffers=16 xfers=8 timeout=100000 channel=1
+
+# setup the tx side
+set frequency tx 2000M
+set samplerate tx 4.0M
+set bandwidth tx 4.0M
+set gain tx -20.0
+tx config file=test_chirp.bin format=bin channel=1 delay=100 repeat=100
+
+print
+
+rx start
+tx start
+tx wait
+echo "tx done"
+rx wait
