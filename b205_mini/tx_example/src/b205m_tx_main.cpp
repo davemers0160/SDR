@@ -254,8 +254,7 @@ int main(int argc, char** argv)
             std::cout << "loop #: " << idx << std::endl;
         }
 
-
-        
+       
         int bp = 2;
 
     }
