@@ -29,6 +29,13 @@ inline std::ostream& operator<< (
     return out;
 }
 
+//-----------------------------------------------------------------------------
+typedef struct hop_params 
+{
+    bladerf_frequency f;                // 32-bit frequency, in Hz
+    struct bladerf_quick_tune qt;       // Quick tune parameters
+
+} hop_params;
 
 //-----------------------------------------------------------------------------
 int select_bladerf(int num_devices, struct bladerf_devinfo* device_list)
