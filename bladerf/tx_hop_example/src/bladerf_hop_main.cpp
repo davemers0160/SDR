@@ -34,21 +34,25 @@
 // Project Includes
 #include "bladerf_common.h"
 
+//-----------------------------------------------------------------------------
+// Globals
 const double pi = 3.14159265358979323846;
 const double pi2 = 2 * 3.14159265358979323846;
 
 const bladerf_frequency hop_step = 30000;
 const bladerf_frequency start_freq = 314000000;
 const bladerf_frequency stop_freq = start_freq + 2370000;
-
+bool is_running = false;
 
 //-----------------------------------------------------------------------------
 void sig_handler(int signo)
 {
-    if (signo == SIGINT) {
+    if (signo == SIGINT) 
+    {
         fprintf(stderr, "received SIGINT\n");
-        fprintf(stderr, "received another SIGINT, aborting\n");
-        abort();
+        is_running = false;
+        //fprintf(stderr, "received another SIGINT, aborting\n");
+        //abort();
 
     }
 }
@@ -86,6 +90,11 @@ int main(int argc, char** argv)
 
     struct bladerf_metadata meta;
     memset(&meta, 0, sizeof(meta));
+
+    std::ofstream data_log_stream;
+
+    std::string sdate, stime;
+    std::string logfile_name = "../results/hop_logfile_";
 
     if (argc < 2)
     {
@@ -204,16 +213,28 @@ int main(int argc, char** argv)
         meta.timestamp += (sample_rate / 50.0);
         meta.flags = BLADERF_META_FLAG_TX_BURST_START | BLADERF_META_FLAG_TX_BURST_END;
 
+        // start up the data logger
+        get_current_time(sdate, stime);
+        logfile_name = logfile_name + sdate + "_" + stime + ".bin";
+
+        std::cout << "Log File: " << (logfile_name) << std::endl << std::endl;
+        data_log_stream.open(logfile_name, ios::out | ios::binary);
+
         // set initial frequency
         hop_index = (uint32_t)(rand() % num_hops);
         blade_status = bladerf_set_frequency(dev, tx, hops[hop_index].f);
+
+        data_log_stream << (uint8_t)hop_index;
+
+        is_running = true;
 
         if (signal(SIGINT, sig_handler) == SIG_ERR) 
         {
             std::cerr << "Unable to catch SIGINT signals" << std::endl;
         }
+        
 
-        while (1)
+        while (is_running)
         {
             hop_index = (uint32_t)(rand() % num_hops);
 
@@ -230,6 +251,8 @@ int main(int argc, char** argv)
                 std::cout << "Failed to perform quick tune to index: " << hop_index << ". blade error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
             }
 
+            data_log_stream << (uint8_t)hop_index;
+
             // Update timestamp for next transmission
             //meta.timestamp += num_samples;
 
@@ -238,22 +261,22 @@ int main(int argc, char** argv)
 
         std::cout << "Done sending signals.  Closing BladeRF..." << std::endl;
 
+        // close the logger
+        data_log_stream.close();
+
         // disable the rx channel RF frontend
         blade_status = bladerf_enable_module(dev, BLADERF_TX, false);
 
-        bladerf_close(dev);
-
-        std::cout << "Press Enter to close..." << std::endl;
-
-        std::cin.ignore();
     }
     catch (std::exception e)
     {
         std::cout << "error: " << e.what() << std::endl;
-        std::cin.ignore();
     }
-    
-    int bp = 1;
+
+    bladerf_close(dev);
+
+    std::cout << "Press Enter to close..." << std::endl;
+    std::cin.ignore();    
     
     return 0;
     
