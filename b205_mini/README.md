@@ -17,8 +17,8 @@ Notes:
 - Select the default install location and do a full install
 - The standard install will only include the release version of the UHD library.  This is important because debugging code in certain instances will cause the program to crash because of the debug/release mis-match.  To get the debug version of the UHD library you will need to build the library.
 
-After the restart plug in the B205mini and check that the drivers installed correctly using the Device Manager.  If you see "Westbridge" and a yellow exclamation next to it then you need to install the drivers.  There are two options to install LibUSB:
-1. WinUSB - Download the [Ettus Driver](http://files.ettus.com/binaries/misc/erllc_uhd_winusb_driver.zip) and follow the [instructions](https://files.ettus.com/manual/page_transport.html#transport_usb_installwin)
+After the restart plug in the B205mini and check that the drivers installed correctly using the Device Manager.  If you see "Westbridge" and a yellow exclamation next to it then you need to install the drivers.  There are two options to install the USB driver:
+1. WinUSB - Download the [Ettus Driver](http://files.ettus.com/binaries/misc/erllc_uhd_winusb_driver.zip) and follow the [instructions](https://files.ettus.com/manual/page_transport.html#transport_usb_installwin).  (This is the recommended way to install)
 2. LibUSB - Download the latest verson of [Zadig](https://github.com/pbatard/libwdi/releases/) and run it.  Select the WestBridge device from the dropdown menu and then select WinUSB from the list of drivers.  Click the install button and wait for it to finish the install.
 
 Boost Install
