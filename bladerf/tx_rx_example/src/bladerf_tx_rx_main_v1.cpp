@@ -91,13 +91,13 @@ std::vector<std::complex<int16_t>> generate_lfm_chirp(int64_t f_start, int64_t f
 
 // ----------------------------------------------------------------------------
 template<typename T>
-inline std::vector<T> maximal_length_sequence(uint16_t N, uint16_t rep)
+inline std::vector<T> maximal_length_sequence(uint16_t N, uint16_t rep, std::vector<uint16_t> taps = { 0, (uint16_t)(N - 1) })
 {
     uint64_t idx, jdx;
     uint16_t tmp;
     std::vector<T> sr;
 
-    std::vector<uint16_t> taps = { 0, (uint16_t)(N - 1) };
+    //std::vector<uint16_t> taps = { 0, (uint16_t)(N - 1) };
 
     // initialize the register
     std::deque<uint8_t> r(N, 0);
