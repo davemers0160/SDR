@@ -32,6 +32,43 @@ const double pi = 3.14159265358979323846;
 const double pi2 = 3.14159265358979323846*2;
 
 // ----------------------------------------------------------------------------
+template<typename T>
+inline std::vector<T> maximal_length_sequence(uint16_t N, uint16_t rep, std::vector<uint16_t> taps = { 0, (uint16_t)(N - 1) })
+{
+    uint64_t idx, jdx;
+    uint16_t tmp;
+    std::vector<T> sr;
+
+    //std::vector<uint16_t> taps = { 0, (uint16_t)(N - 1) };
+
+    // initialize the register
+    std::deque<uint8_t> r(N, 0);
+    r[0] = 1;
+
+    // shift register 
+    uint64_t sr_size = (1 << N) - 1;
+
+    for (idx = 0; idx < sr_size; ++idx)
+    {
+        //        sr.insert(sr.end(), rep, amplitude * (2 * r[N - 1] - 1));
+        sr.insert(sr.end(), rep, r[N - 1]);
+
+        tmp = 0;
+        for (jdx = 0; jdx < taps.size(); ++jdx)
+        {
+            tmp += r[taps[jdx]];
+        }
+        tmp = tmp % 2;
+
+        r.push_front(tmp);
+        r.pop_back();
+    }
+
+    return sr;
+}   // end of maximal_length_sequence
+
+
+// ----------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
 

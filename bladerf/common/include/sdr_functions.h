@@ -37,7 +37,7 @@ inline std::vector<T> maximal_length_sequence(uint16_t N, std::vector<uint16_t> 
         }
         tmp = tmp % 2;
 
-        r.push_front(tmp);
+        r.push_front((uint8_t)tmp);
         r.pop_back();
     }
 
