@@ -11,10 +11,11 @@
 //#include <arrayfire.h>
 
 #include <cstdint>
+#include <csignal>
+#include <cmath>
 #include <iostream>
 #include <sstream>
 #include <complex>
-#include <cmath>
 
 // bladeRF includes
 #include <libbladeRF.h>
@@ -35,6 +36,22 @@
 const double pi = 3.14159265358979323846;
 const double pi2 = 3.14159265358979323846*2;
 
+static bool is_running;
+
+//-----------------------------------------------------------------------------
+void sig_handler(int signo)
+{
+    if (signo == SIGINT)
+    {
+        fprintf(stderr, "received SIGINT\n");
+        is_running = false;
+        //fprintf(stderr, "received another SIGINT, aborting\n");
+        //abort();
+
+    }
+}
+
+
 // ----------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
@@ -50,14 +67,14 @@ int main(int argc, char** argv)
     bladerf_sample_rate sample_rate = 20000000;     // 10 MHz
     bladerf_channel rx = BLADERF_CHANNEL_RX(0);
     bladerf_channel tx = BLADERF_CHANNEL_TX(0);
-    bladerf_frequency tx_freq = 1694000000;// 314300000;
-    bladerf_bandwidth tx_bw = 2000000;
-    bladerf_gain tx1_gain = 40000;
+    bladerf_frequency tx_freq = 915000000;// 314300000;
+    bladerf_bandwidth tx_bw = 50000000;
+    bladerf_gain tx1_gain = 55000;
 
     std::vector<int16_t> samples;
     uint64_t num_samples;
     const uint32_t num_buffers = 16;
-    const uint32_t buffer_size = 1024*8;        // must be a multiple of 1024
+    const uint32_t buffer_size = 1024*3;        // must be a multiple of 1024
     const uint32_t num_transfers = 8;
     uint32_t timeout_ms = 10000;
 
@@ -94,7 +111,7 @@ int main(int argc, char** argv)
     float fc = 2.0e6 / (float)sample_rate;
 
     // create the low pass filter
-    std::vector<double> lpf = DSP::create_fir_filter<double>(n_taps, fc, &DSP::nuttall_window);
+    std::vector<double> lpf = DSP::create_fir_filter<double>(n_taps-1, fc, &DSP::nuttall_window);
 
     //----------------------------------------------------------------------------
     // apply filter
@@ -139,13 +156,11 @@ int main(int argc, char** argv)
     for (idx = 0; idx < x1.size(); ++idx)
     {
         std::complex<double> tmp = std::complex<double>(x1[idx].real(), x1[idx].imag());
-        x1_r[idx] = f_rot[idx] * tmp;
+        x1_r[idx] = std::complex<int16_t>(f_rot[idx] * tmp);
     }
 
-
-
-    // the number of IQ samples is the number of samples divided by 2
-    num_samples = iq_data.size() >> 1;
+    // the number of IQ samples is the number of complex samples
+    num_samples = x0.size();
 
     // ----------------------------------------------------------------------------
     int num_devices = bladerf_get_device_list(&device_list);
@@ -201,21 +216,69 @@ int main(int argc, char** argv)
 
         idx = 0;
 
-        while (idx<500)
+        is_running = true;
+
+        if (signal(SIGINT, sig_handler) == SIG_ERR)
         {
-            blade_status = bladerf_sync_tx(dev, (int16_t*)iq_data.data(), num_samples, NULL, timeout_ms);
-
-            if (blade_status != 0)
-            {
-                std::cout << "Unable to get the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-                return blade_status;
-            }
-
-            std::cout << "Sending signal #" << idx << std::endl;
-            ++idx;
+            std::cerr << "Unable to catch SIGINT signals" << std::endl;
         }
 
-        std::cout << "Done sending signals.  Closing BladeRF..." << std::endl;
+        std::vector<std::complex<int16_t>> xn(buffer_size-x1.size(), std::complex<int16_t>(0, 0));
+        
+        uint32_t result;
+
+        std::string console_input;
+        std::cout << "Select waveform: " << std::endl;
+        std::cout << "0 - Unfiltered BPSK" << std::endl;
+        std::cout << "1 - Filtered BPSK" << std::endl;
+        std::cout << "2 - Rotated & Filtered BPSK" << std::endl;
+
+        while (is_running)
+        {
+
+            std::getline(std::cin, console_input);
+            result = std::stoi(console_input);
+
+            std::vector<std::complex<int16_t>> x;
+            switch (result)
+            {
+            case 0:
+                std::copy(x0.begin(), x0.end(), back_inserter(x));
+                break;
+
+            case 1:
+                std::copy(x1.begin(), x1.end(), back_inserter(x));
+                break;
+
+            case 2:
+                std::copy(x1_r.begin(), x1_r.end(), back_inserter(x));
+                break;
+
+            default:
+                std::copy(x0.begin(), x0.end(), back_inserter(x));
+                break;
+            }
+
+            idx = 0;
+            while (idx < 10000)
+            {
+                blade_status = bladerf_sync_tx(dev, (int16_t*)x.data(), (uint32_t)x.size(), NULL, timeout_ms);
+                blade_status = bladerf_sync_tx(dev, (int16_t*)xn.data(), (uint32_t)xn.size(), NULL, timeout_ms);
+
+                if (blade_status != 0)
+                {
+                    std::cout << "Unable to get the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                    return blade_status;
+                }
+
+                //std::cout << "Sending signal #" << idx << std::endl;
+                ++idx;
+            }
+
+            std::cout << "Done sending signals..." << std::endl;
+        }
+
+        std::cout << std::endl << "Closing BladeRF..." << std::endl;
 
         // disable the rx channel RF frontend
         blade_status = bladerf_enable_module(dev, BLADERF_TX, false);
@@ -224,7 +287,7 @@ int main(int argc, char** argv)
 
         std::cout << "Press Enter to close..." << std::endl;
 
-        std::cin.ignore();
+        //std::cin.ignore();
     }
     catch (std::exception e)
     {
