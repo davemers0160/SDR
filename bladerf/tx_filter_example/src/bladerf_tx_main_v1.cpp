@@ -78,8 +78,6 @@ int main(int argc, char** argv)
     const uint32_t num_transfers = 8;
     uint32_t timeout_ms = 10000;
 
-    std::string message = "Hello!";
-
     int16_t amplitude = 1500;
 
     // ----------------------------------------------------------------------------
@@ -103,6 +101,10 @@ int main(int argc, char** argv)
         iq_data.insert(iq_data.end(), samples_per_bit, bpsk_iq[idx]);
     }
 
+    // pad the iq data with zeros for sending the 
+    uint32_t buffer_diff = (iq_data.size() > buffer_size) ? iq_data.size() % buffer_size : buffer_size - iq_data.size();
+    iq_data.insert(iq_data.end(), buffer_diff, std::complex<double>(0,0));
+
     // ----------------------------------------------------------------------------
     // window size
     int64_t n_taps = 301;
@@ -111,7 +113,15 @@ int main(int argc, char** argv)
     float fc = 2.0e6 / (float)sample_rate;
 
     // create the low pass filter
-    std::vector<double> lpf = DSP::create_fir_filter<double>(n_taps-1, fc, &DSP::nuttall_window);
+    std::vector<double> lpf = DSP::create_fir_filter<double>(n_taps, fc, &DSP::nuttall_window);
+
+    //----------------------------------------------------------------------------
+    // take the base data and scale to the desired amplitude
+    std::vector<std::complex<int16_t>> x0(iq_data.size(), std::complex<int16_t>(0, 0));
+    for (idx = 0; idx < iq_data.size(); ++idx)
+    {
+        x0[idx] = amplitude * std::complex<int16_t>(iq_data[idx]);
+    }
 
     //----------------------------------------------------------------------------
     // apply filter
@@ -138,12 +148,6 @@ int main(int argc, char** argv)
         }
 
         x1[idx - offset] = (double)amplitude * accum;
-    }
-
-    std::vector<std::complex<int16_t>> x0(iq_data.size(), std::complex<int16_t>(0, 0));
-    for (idx = 0; idx < iq_data.size(); ++idx)
-    {
-        x0[idx] = amplitude * std::complex<int16_t>(iq_data[idx]);
     }
 
     //----------------------------------------------------------------------------
@@ -223,7 +227,6 @@ int main(int argc, char** argv)
             std::cerr << "Unable to catch SIGINT signals" << std::endl;
         }
 
-        std::vector<std::complex<int16_t>> xn(buffer_size-x1.size(), std::complex<int16_t>(0, 0));
         
         uint32_t result;
 
@@ -263,7 +266,7 @@ int main(int argc, char** argv)
             while (idx < 10000)
             {
                 blade_status = bladerf_sync_tx(dev, (int16_t*)x.data(), (uint32_t)x.size(), NULL, timeout_ms);
-                blade_status = bladerf_sync_tx(dev, (int16_t*)xn.data(), (uint32_t)xn.size(), NULL, timeout_ms);
+                //blade_status = bladerf_sync_tx(dev, (int16_t*)xn.data(), (uint32_t)xn.size(), NULL, timeout_ms);
 
                 if (blade_status != 0)
                 {
@@ -287,7 +290,7 @@ int main(int argc, char** argv)
 
         std::cout << "Press Enter to close..." << std::endl;
 
-        //std::cin.ignore();
+        std::cin.ignore();
     }
     catch (std::exception e)
     {
