@@ -236,7 +236,7 @@ int main(int argc, char** argv)
         std::cout << "1 - Filtered BPSK" << std::endl;
         std::cout << "2 - Rotated & Filtered BPSK" << std::endl;
 
-        while (is_running)
+        while(is_running)
         {
 
             std::getline(std::cin, console_input);
@@ -279,7 +279,8 @@ int main(int argc, char** argv)
             }
 
             std::cout << "Done sending signals..." << std::endl;
-        }
+
+        }   // end of while(is_running)
 
         std::cout << std::endl << "Closing BladeRF..." << std::endl;
 
