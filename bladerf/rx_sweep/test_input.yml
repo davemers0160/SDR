@@ -11,7 +11,7 @@ frequency:
 sample_rate: 50000000
 
 # duration for each step (seconds)
-step_duration: 0.00001 
+step_duration: 0.001 
 
 # location where each step is saved (must have "/" at the end)
 save_location: "../results/"

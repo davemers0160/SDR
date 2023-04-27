@@ -11,38 +11,6 @@
 #include <bladeRF2.h>
 
 //-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-template <typename T>
-inline void generate_range(T start, T stop, T step, std::vector<T>& range)
-{
-    range.clear();
-
-    T s = start;
-    if (step > 0)
-    {
-        while (s <= stop)
-        {
-            range.push_back(s);
-            s += step;
-        }
-    }
-    else if (step < 0)
-    {
-        while (s >= stop)
-        {
-            range.push_back(s);
-            s += step;
-        }
-    }
-    else
-    {
-        range.push_back(start);
-    }
-
-}   // end of generate_range
-
-
-//-----------------------------------------------------------------------------
 void parse_input(std::string param_filename,
     std::vector<uint64_t>& freq_range,
     uint32_t &sample_rate,
@@ -78,7 +46,7 @@ void parse_input(std::string param_filename,
         config["sample_rate"] >> sample_rate;
 
         // step duration
-        config["duration"] >> duration;
+        config["step_duration"] >> duration;
 
         config["save_location"] >> save_location;
 

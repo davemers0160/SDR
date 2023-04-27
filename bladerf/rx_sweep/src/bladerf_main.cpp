@@ -47,7 +47,7 @@ int main(int argc, char** argv)
     
     uint32_t timeout_ms = 10000;
     const uint32_t num_buffers = 16;
-    const uint32_t buffer_size = 1024 * 4 * 8;        // must be a multiple of 1024
+    const uint32_t buffer_size = 1024 * 4;        // must be a multiple of 1024
     const uint32_t num_transfers = 8;
 
     double duration;
@@ -63,14 +63,14 @@ int main(int argc, char** argv)
     std::ofstream data_file;
 
 
-    if (argc == 2)
+    if (argc < 2)
     {
-        param_filename = argv[1];
-
+        std::cout << "You must supply a yaml parameter file.  Press Enter to close." << std::endl;
         std::cin.ignore();
-        return;
+        return 0;
     }
 
+    param_filename = argv[1];
     parse_input(param_filename, rx_freq_range, sample_rate, duration, save_location);
 
     num_samples = (uint64_t)(sample_rate * duration);
@@ -140,14 +140,17 @@ int main(int argc, char** argv)
         std::cin.ignore();
 
         // collect some dummy samples
-        blade_status = bladerf_sync_rx(dev, (void*)samples.data(), buffer_size, NULL, timeout_ms);
+        blade_status = bladerf_sync_rx(dev, (void*)samples.data(), std::min(buffer_size, (uint32_t)samples.size()), NULL, timeout_ms);
 
 
         for (idx = 0; idx < rx_freq_range.size(); ++idx)
         {
-            std::cout << "strating capture: " << idx << std::endl;
+            blade_status = bladerf_set_frequency(dev, rx, rx_freq_range[idx]);
+            blade_status = bladerf_get_frequency(dev, rx, &rx_freq);
 
-            file_name = "blade_" + num2str(idx, "%04d") + ".bin";
+            std::cout << "Strating capture: " << idx << std::endl;
+
+            file_name = "blade_" + num2str((uint32_t)(rx_freq/1000000.0), "%04d") + "M.bin";
 
             data_file.open(save_location + file_name, ios::out | ios::binary);
 
@@ -166,7 +169,7 @@ int main(int argc, char** argv)
                 return blade_status;
             }
 
-            std::cout << "Capture complete!  Saving data..." << std::endl;
+            std::cout << "Capture complete!  Saving data..." << std::endl << std::endl;
             data_file.write(reinterpret_cast<const char*>(samples.data()), samples.size() * sizeof(int16_t));
 
             data_file.close();
@@ -183,7 +186,9 @@ int main(int argc, char** argv)
         std::cout << "Error: " << e.what() << std::endl;
     }
 
-    
+    std::cout << "Complete! Press enter to close... " << std::endl;
+    std::cin.ignore();
+
     return 0;
     
 }   // end of main
