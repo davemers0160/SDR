@@ -1,0 +1,17 @@
+# BladeRF YAML file
+# file used to setup the recording of a sweep across a large bandwidth
+
+# frequency step plan.  (All values in MHz)
+frequency:
+    start: 400000000
+    stop: 500000000
+    step: 20000000
+    
+# sample rate for each step (MHz)
+sample_rate: 50000000
+
+# duration for each step (seconds)
+step_duration: 0.00001 
+
+# location where each step is saved (must have "/" at the end)
+save_location: "../results/"
