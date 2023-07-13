@@ -15,6 +15,7 @@
 #include <vector>
 #include <algorithm>
 #include <complex>
+#include <csignal>
 
 // HackRF includes
 #include <hackrf.h>
@@ -27,6 +28,10 @@
 
 const double pi = 3.14159265358979323846;
 const double pi2 = 2.0 * 3.14159265358979323846;
+
+const uint64_t hop_step = 25000;
+const uint64_t start_freq = 30000000;
+const uint64_t stop_freq = 88000000;
 
 const std::complex<double> j(0, 1);
 
@@ -105,7 +110,7 @@ int main(int argc, char** argv)
     // hackrf specific structs
     hackrf_device* dev = NULL;
 
-    double sample_rate = 10000000;
+    double sample_rate = 16000000;
     uint64_t freq = 314500000;
     uint32_t tx_gain = 6;
 
@@ -116,17 +121,21 @@ int main(int argc, char** argv)
     uint64_t num_blocks = 100;
 
     std::complex<double> tmp_val;
+	std::vector<uint64_t> hops;
+    uint32_t hop_index;
+
+    srand((unsigned)time(NULL));
 
     //generate IQ samples - simple FSK
     uint64_t data = 0xAB42F58C15ACFE37;     // random 64-bit data
     uint64_t bit_mask = 1;
 
     // the number of samples per bit
-    double bit_length = 1e-2;
+    double bit_length = 125e-9;
     uint32_t bit_samples = (uint32_t)(sample_rate * bit_length);
 
     // the frequency offset for the FSK modulation - 100kHz, normalized by the sample rate
-    double freq_offset = 25000.0 / sample_rate;
+    double freq_offset = 7500.0 / sample_rate;
 
     double amplitude = 120;
 
@@ -160,10 +169,18 @@ int main(int argc, char** argv)
     //std::string save_filename = "../test_hackrf_save.bin";
     //write_iq_data(save_filename, samples);
 
+	// create the hop frequncies
+	uint32_t num_hops = (uint32_t)std::floor((stop_freq - start_freq) / (double)hop_step);
+	for (idx = 0; idx < num_hops; ++idx)
+	{
+		hops.push_back(start_freq + (idx * hop_step));
+	}
+	
+	
 
     try
     {
-
+		// perform hackrf initialization
         rv = hackrf_init();
         if (rv != HACKRF_SUCCESS)
         {
@@ -173,6 +190,7 @@ int main(int argc, char** argv)
             return -1;
         }
 
+		// get user selection of which hackrf to use.  If there is only one then nothing needed from user
         rv = select_hackf(&dev);
         if (rv != HACKRF_SUCCESS)
         {
@@ -194,8 +212,12 @@ int main(int argc, char** argv)
         }
 
             
-        for (idx = 0; idx < 20; ++idx)
+        while(1)
         {
+			hop_index = (uint32_t)(rand() % num_hops);
+			
+			rv = hackrf_set_freq(dev, hops[hop_index]);
+
             data_index = 0;
             tx_complete = false;
 
@@ -209,10 +231,10 @@ int main(int argc, char** argv)
             //while ((hackrf_is_streaming(dev) == HACKRF_TRUE));
             while (!tx_complete)
             {
-                sleep_ms(50);
+                //sleep_ms(50);
             }
 
-            sleep_ms(20);
+            //sleep_ms(20);
 
             // stop the transmit callback
             rv = hackrf_stop_tx(dev);
@@ -222,9 +244,9 @@ int main(int argc, char** argv)
                 //return EXIT_FAILURE;
             }
 
-            sleep_ms(200);
+            //sleep_ms(200);
 
-            std::cout << "loop #: " << idx << std::endl;
+            //std::cout << "loop #: " << idx << std::endl;
         }
 
     }
