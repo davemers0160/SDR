@@ -69,7 +69,7 @@ int main(int argc, char** argv)
     std::cout << std::endl << std::endl;
 
     // array fire variables
-    af::array raw_data, fft_data;
+    af::array raw_data, fft_data, fft_max;
 
 #endif // USE_ARRAYFIRE
 
@@ -150,15 +150,19 @@ int main(int argc, char** argv)
 #ifdef USE_ARRAYFIRE
 
         af::Window myWindow(800, 800, "FFT example: ArrayFire");
+
         //af::array X = af::seq(0, num_samples - 1, 1);
         af::array X = af::seq(sp+1, (sp+sp2), 1);
         //auto x2d = X.dims(0);
 
         //af::array f = af::seq(f_min, f_max - (freq_step * 1.0e-6), (freq_step * 1.0e-6));
         af::array f = af::seq(f_min, f_max, (freq_step * 1.0e-6));
+        fft_max = af::constant(-120, f.dims(0));
+        auto f_dims = f.dims();
 
         myWindow.setAxesLimits(f_min, f_max - (freq_step * 1.0e-6), -120, -20, true);
         myWindow.setAxesTitles("Frequency (MHz)", "Power (dBm)");
+        
 
         while (!myWindow.close())
 
@@ -191,12 +195,20 @@ int main(int argc, char** argv)
 
             fft_data = 20 * af::log10(af::shift(af::abs(raw_data), (num_samples >> 1)));
 
+            //for (idx = 0; idx < fft_data.dims(0); ++idx)
+            //    fft_max(idx,0) = max<float>(af::max<float>(fft_max(idx,0)), af::max<float>(fft_data(idx,0)));
+
+
+            //auto tmp = af::max<float>(fft_max(0));
+
             auto x_dim = X.dims();
             auto f_dim = f.dims();
             auto fft_dims = fft_data.dims();
 
             // show the results of the FFT in the window
             myWindow.plot(f, fft_data(X));
+            //myWindow.plot(f, fft_max(X));
+
             //myWindow.show();
 #endif
         }

@@ -31,7 +31,8 @@ int main(int argc, char** argv)
 {
 
     uint32_t idx;
-    
+    std::string sdate, stime;
+
     // bladeRF variable
     struct bladerf_devinfo *device_list = NULL;
     struct bladerf_devinfo dev_info;
@@ -43,7 +44,7 @@ int main(int argc, char** argv)
     bladerf_frequency rx_freq = 137000000;
     bladerf_sample_rate sample_rate;
     bladerf_bandwidth rx_bw;
-    bladerf_gain rx1_gain = 50;
+    bladerf_gain rx1_gain = 60;
     
     uint32_t timeout_ms = 10000;
     const uint32_t num_buffers = 16;
@@ -90,6 +91,8 @@ int main(int argc, char** argv)
     std::cout << std::endl;
 
     try{
+        get_current_time(sdate, stime);
+
       
         blade_status = bladerf_open(&dev, ("*:serial=" +  std::string(device_list[bladerf_num].serial)).c_str());
         if (blade_status != 0)
@@ -148,9 +151,9 @@ int main(int argc, char** argv)
             blade_status = bladerf_set_frequency(dev, rx, rx_freq_range[idx]);
             blade_status = bladerf_get_frequency(dev, rx, &rx_freq);
 
-            std::cout << "Strating capture: " << idx << std::endl;
+            std::cout << "Starting capture: " << idx << " - " << num2str((uint32_t)(rx_freq / 1000000.0), "%04d") << "MHz" << std::endl;
 
-            file_name = "blade_" + num2str((uint32_t)(rx_freq/1000000.0), "%04d") + "M.bin";
+            file_name = "blade_" + num2str((uint32_t)(rx_freq/1000000.0), "%04d") + "M_" + sdate + "_" + stime + ".bin";
 
             data_file.open(save_location + file_name, ios::out | ios::binary);
 
