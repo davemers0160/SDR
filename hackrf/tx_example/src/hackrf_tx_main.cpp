@@ -105,8 +105,8 @@ int main(int argc, char** argv)
     // hackrf specific structs
     hackrf_device* dev = NULL;
 
-    double sample_rate = 10000000;
-    uint64_t freq = 314500000;
+    double sample_rate = 16000000;
+    uint64_t freq = 3100000000;
     uint32_t tx_gain = 6;
 
     int32_t rv;
@@ -194,7 +194,7 @@ int main(int argc, char** argv)
         }
 
             
-        for (idx = 0; idx < 20; ++idx)
+        while(1)
         {
             data_index = 0;
             tx_complete = false;

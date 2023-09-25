@@ -1,5 +1,6 @@
 // ----------------------------------------------------------------------------------------
 #define _CRT_SECURE_NO_WARNINGS
+#include <ryml_all.hpp>
 
 #if defined(_WIN32) | defined(__WIN32__) | defined(__WIN32) | defined(_WIN64) | defined(__WIN64)
 
@@ -17,7 +18,7 @@
 #include <algorithm>
 #include <complex>
 #include <csignal>
-
+#include <chrono>
 
 // bladeRF includes
 #include <libbladeRF.h>
@@ -33,15 +34,16 @@
 
 // Project Includes
 #include "bladerf_common.h"
+#include "parse_hop_input.h"
 
 //-----------------------------------------------------------------------------
 // Globals
 const double pi = 3.14159265358979323846;
 const double pi2 = 2 * 3.14159265358979323846;
 
-const bladerf_frequency hop_step = 30000;
-const bladerf_frequency start_freq = 914000000;
-const bladerf_frequency stop_freq = start_freq + 2370000;
+const bladerf_frequency hop_step = 25000;
+const bladerf_frequency start_freq = 47000000;
+const bladerf_frequency stop_freq = start_freq + 5000000;
 bool is_running = false;
 
 //-----------------------------------------------------------------------------
@@ -58,23 +60,34 @@ void sig_handler(int signo)
 }
 
 
+
 //-----------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
 
     uint32_t idx, jdx;
     
+    // timing variables
+    auto start_time = std::chrono::high_resolution_clock::now();
+    auto stop_time = std::chrono::high_resolution_clock::now();
+    double duration = std::chrono::duration_cast<chrono::nanoseconds>(stop_time - start_time).count();
+
     // bladeRF variable
     struct bladerf_devinfo *device_list = NULL;
     struct bladerf_devinfo dev_info;
     struct bladerf* dev;
     int bladerf_num;
     int blade_status;
-    bladerf_sample_rate sample_rate = 20e6;     // 10 MHz
+    bladerf_sample_rate sample_rate = 30e6;     // 10 MHz
     bladerf_channel tx = BLADERF_CHANNEL_TX(0);
-    bladerf_frequency tx_freq = 1500000000;// 314300000;
+    bladerf_frequency start_freq = 1500000000;// 314300000;
+    bladerf_frequency stop_freq = 1500000000;// 314300000;
+    bladerf_frequency hop_step = 500000000;// 314300000;
     bladerf_bandwidth tx_bw = 20000000;
-    bladerf_gain tx1_gain = 10;
+    bladerf_gain tx1_gain = 60000;
+
+    double on_time;
+    double off_time;
 
     uint64_t num_samples;
     const uint32_t num_buffers = 16;
@@ -84,14 +97,14 @@ int main(int argc, char** argv)
     uint32_t hop_index;
 
     std::vector<std::complex<int16_t>> samples;
-    std::string filename;
+    std::string iq_filename;
 
     std::vector<hop_params> hops;
 
     struct bladerf_metadata meta;
     memset(&meta, 0, sizeof(meta));
 
-    std::ofstream data_log_stream;
+    //std::ofstream data_log_stream;
 
     std::string sdate, stime;
     std::string logfile_name = "../results/hop_logfile_";
@@ -103,14 +116,16 @@ int main(int argc, char** argv)
         return -1;
     }
 
+    // read in the parameters
+    std::string param_filename = argv[1];
+    read_hop_params(param_filename, start_freq, stop_freq, hop_step, sample_rate, on_time, off_time, tx1_gain, iq_filename);
+
     // initialize a random number generator
     srand((unsigned)time(NULL));
 
-    filename = std::string(argv[1]);
-
     // ----------------------------------------------------------------------------
     // read in the data
-    read_iq_data(filename, samples);
+    read_iq_data(iq_filename, samples);
 
     // the number of IQ samples is the number of samples divided by 2
     num_samples = samples.size();
@@ -217,14 +232,14 @@ int main(int argc, char** argv)
         get_current_time(sdate, stime);
         logfile_name = logfile_name + sdate + "_" + stime + ".bin";
 
-        std::cout << "Log File: " << (logfile_name) << std::endl << std::endl;
-        data_log_stream.open(logfile_name, ios::out | ios::binary);
+        //std::cout << "Log File: " << (logfile_name) << std::endl << std::endl;
+        //data_log_stream.open(logfile_name, ios::out | ios::binary);
 
         // set initial frequency
         hop_index = (uint32_t)(rand() % num_hops);
         blade_status = bladerf_set_frequency(dev, tx, hops[hop_index].f);
 
-        data_log_stream << (uint8_t)hop_index;
+        //data_log_stream << (uint8_t)hop_index;
 
         is_running = true;
 
@@ -251,7 +266,7 @@ int main(int argc, char** argv)
                 std::cout << "Failed to perform quick tune to index: " << hop_index << ". blade error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
             }
 
-            data_log_stream << (uint8_t)hop_index;
+            //data_log_stream << (uint8_t)hop_index;
 
             // Update timestamp for next transmission
             //meta.timestamp += num_samples;
@@ -262,7 +277,7 @@ int main(int argc, char** argv)
         std::cout << "Done sending signals.  Closing BladeRF..." << std::endl;
 
         // close the logger
-        data_log_stream.close();
+        //data_log_stream.close();
 
         // disable the rx channel RF frontend
         blade_status = bladerf_enable_module(dev, BLADERF_TX, false);
