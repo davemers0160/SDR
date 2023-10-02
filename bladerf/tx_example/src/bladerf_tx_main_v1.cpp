@@ -24,12 +24,31 @@
 #include "get_current_time.h"
 #include "file_parser.h"
 #include "file_ops.h"
+#include "iq_utils.h"
 
 // Project Includes
 #include <bladerf_common.h>
 
 const double pi = 3.14159265358979323846;
 const double pi2 = 3.14159265358979323846*2;
+
+const std::complex<double> j(0, 1);
+
+// ----------------------------------------------------------------------------
+template<typename T>
+inline std::vector<std::complex<T>> generate_bpsk_iq(std::vector<T> s, T amplitude)
+{
+    uint64_t idx;
+
+    std::vector<std::complex<T>> data(s.size(), std::complex<T>(0, 0));
+
+    for (idx = 0; idx < s.size(); ++idx)
+    {
+        data[idx] = std::complex<T>(amplitude * (2 * s[idx] - 1), 0);
+    }
+
+    return data;
+}
 
 // ----------------------------------------------------------------------------
 template<typename T>
@@ -80,76 +99,75 @@ int main(int argc, char** argv)
     struct bladerf* dev;
     int bladerf_num;
     int blade_status;
-    bladerf_sample_rate sample_rate = 10000000;     // 10 MHz
+    bladerf_sample_rate sample_rate = 1000000;     // 10 MHz
     bladerf_channel rx = BLADERF_CHANNEL_RX(0);
     bladerf_channel tx = BLADERF_CHANNEL_TX(0);
-    bladerf_frequency tx_freq = 1694000000;// 314300000;
-    bladerf_bandwidth tx_bw = 2000000;
-    bladerf_gain tx1_gain = 00;
+    bladerf_frequency tx_freq = 2500188000;// 314300000;
+    //bladerf_frequency tx_freq = 2375188000;// 314300000;
+    //bladerf_frequency tx_freq = 2250188000;// 314300000;
+    bladerf_bandwidth tx_bw = 1000000;
+    bladerf_gain tx1_gain = 60000;
 
     std::vector<int16_t> samples;
     uint64_t num_samples;
     const uint32_t num_buffers = 16;
-    const uint32_t buffer_size = 1024*8;        // must be a multiple of 1024
+    const uint32_t buffer_size = 1024*4;        // must be a multiple of 1024
     const uint32_t num_transfers = 8;
-    uint32_t timeout_ms = 10000;
+    uint32_t timeout_ms = 5000;
 
-    std::vector<uint8_t> data;
-    std::vector<int16_t> iq_data;
+    //std::vector<uint8_t> data;
+    //std::vector<int16_t> iq_data;
+    std::vector<std::complex<int16_t>> iq_data;
+    std::complex<double> tmp_val;
 
-    std::string message = "Hello!";
+    //generate IQ samples - simple FSK
+    uint64_t data = 0xAB42F58C15ACFE37;     // random 64-bit data: 0xAB42F58C15ACFE37
+    uint64_t bit_mask = 1;
 
-    // generate the data that will be transmitted
-    for (idx = 0; idx < 19; ++idx)
-    {
-        data.push_back(1);
-    }
-    data.push_back(0);
-
-    for (idx = 0; idx < message.length(); ++idx)
-    {
-        for (jdx = 0; jdx < 8; ++jdx)
-        {
-            data.push_back((message[idx] >> (8 - jdx)) & 0x01);
-        }
-
-    }
-        
-    // ----------------------------------------------------------------------------
-    // create the bits in RF
     // the number of samples per bit
-    uint32_t bit_samples = 50000;
+    double bit_length = 1e-4;
+    uint32_t bit_samples = (uint32_t)(sample_rate * bit_length);
 
-    // the frequency offset for the FSK modulation - 200kHz
-    double freq_offset = 100000;
+    // the frequency offset for the FSK modulation, normalized by the sample rate
+    double freq_offset = 200000.0 / sample_rate;
 
-    // vectors to store the IQ representation of a 0 and a 1
-    std::vector<int16_t> IQ_1, IQ_0;
+    double amplitude = 2000;
 
-    // generate the samples - consists of one I and one Q.  The data should be packed IQIQIQIQIQIQ...
-    for (idx = 0; idx < bit_samples; ++idx)
+    for (idx = 0; idx < sizeof(data) * 8; ++idx)
     {
-        IQ_1.push_back((int16_t)(1200 * (cos((-2.0 * pi * freq_offset * idx) / (double)sample_rate))));
-        IQ_1.push_back((int16_t)(1200 * (sin((-2.0 * pi * freq_offset * idx) / (double)sample_rate))));
-        IQ_0.push_back((int16_t)(1200 * (cos((2.0 * pi * freq_offset * idx) / (double)sample_rate))));
-        IQ_0.push_back((int16_t)(1200 * (sin((2.0 * pi * freq_offset * idx) / (double)sample_rate))));
-    }
-
-    // run through each data bit and map the bit_samples of IQ data
-    for (idx = 0; idx < data.size(); ++idx)
-    {
-        if (data[idx] == 1)
+        // if true this is a one
+        if (data & bit_mask)
         {
-            iq_data.insert(iq_data.end(), IQ_1.begin(), IQ_1.end());
+            for (jdx = 0; jdx < bit_samples; ++jdx)
+            {
+                tmp_val = amplitude * (std::exp(j * pi2 * freq_offset * (double)jdx));
+                iq_data.push_back(std::complex<int16_t>(tmp_val.real(), tmp_val.imag()));
+            }
         }
+        // if not this is a zero
         else
         {
-            iq_data.insert(iq_data.end(), IQ_0.begin(), IQ_0.end());
+            for (jdx = 0; jdx < bit_samples; ++jdx)
+            {
+                tmp_val = amplitude * (std::exp(j * pi2 * (-freq_offset) * (double)jdx));
+                iq_data.push_back(std::complex<int16_t>(tmp_val.real(), tmp_val.imag()));
+            }
         }
+
+        bit_mask <<= 1;
+
     }
 
+
+
+
+    //std::string filename = "D:/data/fm_test_1M.sc16";
+
+    //read_iq_data(filename, iq_data);
+
+
     // the number of IQ samples is the number of samples divided by 2
-    num_samples = iq_data.size() >> 1;
+    num_samples = iq_data.size();
 
     // ----------------------------------------------------------------------------
     int num_devices = bladerf_get_device_list(&device_list);
@@ -205,7 +223,7 @@ int main(int argc, char** argv)
 
         idx = 0;
 
-        while (idx<500)
+        while (idx<50000)
         {
             blade_status = bladerf_sync_tx(dev, (int16_t*)iq_data.data(), num_samples, NULL, timeout_ms);
 

@@ -91,7 +91,7 @@ std::vector<std::complex<int16_t>> generate_lfm_chirp(int64_t f_start, int64_t f
 
 // ----------------------------------------------------------------------------
 template<typename T>
-inline std::vector<T> maximal_length_sequence(uint16_t N, uint16_t rep, std::vector<uint16_t> taps = { 0, (uint16_t)(N - 1) })
+inline std::vector<T> maximal_length_sequence(uint16_t N, uint16_t rep, std::vector<uint16_t> taps)
 {
     uint64_t idx, jdx;
     uint16_t tmp;
@@ -229,27 +229,27 @@ int main(int argc, char** argv)
     int blade_status;
     bladerf_channel rx = BLADERF_CHANNEL_RX(0);
     bladerf_channel tx = BLADERF_CHANNEL_TX(0);
-    bladerf_frequency rx_freq = 137000000; //162425000;
-    bladerf_frequency tx_freq = 137000000; //162425000;
-    bladerf_sample_rate rx_fs = 624000;
-    bladerf_sample_rate tx_fs = 624000;
-    bladerf_bandwidth rx_bw = 624000;
-    bladerf_bandwidth tx_bw = 624000;
-    bladerf_gain rx1_gain = 30;
-    bladerf_gain tx1_gain = 10;
+    bladerf_frequency rx_freq = 2500000000; //162425000;
+    bladerf_frequency tx_freq = 2500000000; //162425000;
+    bladerf_sample_rate rx_fs = 10000000;
+    bladerf_sample_rate tx_fs = 10000000;
+    bladerf_bandwidth rx_bw = 2000000;
+    bladerf_bandwidth tx_bw = 2000000;
+    bladerf_gain rx1_gain = 60;
+    bladerf_gain tx1_gain = 60000;
 
-    int64_t span = 500000;
+    int64_t span = 1000000;
 
 
     //uint32_t timeout_ms = 10000;
     const uint32_t num_buffers = 16;
     const uint32_t buffer_size = 1024;        // must be a multiple of 1024
     const uint32_t num_transfers = 8;
-    double t = 0;
-    int16_t amplitude = 1800;
+    double t = 1;
+    int16_t amplitude = 1950;
 
-    std::string chirp_filename = "../recordings/test_chirp.bin";
-    std::string data_filename = "../recordings/test_record_chirp.bin";
+    std::string chirp_filename = "../recordings/test_chirp.sc16";
+    std::string data_filename = "../recordings/test_record_chirp.sc16";
     std::ofstream data_file, chirp_file;
 
     if (argc != 2)
@@ -260,7 +260,7 @@ int main(int argc, char** argv)
     }
 
     std::string param_filename = argv[1];
-    read_bladerf_params(param_filename, rx_freq, rx_fs, rx_bw, rx1_gain, &t);
+    //read_bladerf_params(param_filename, rx_freq, rx_fs, rx_bw, rx1_gain, &t);
 
     uint64_t num_rx_samples = (uint64_t)floor(rx_fs * t);  // 50ms of samples
     std::vector<int16_t> rx_samples(num_rx_samples*2);
@@ -313,9 +313,9 @@ int main(int argc, char** argv)
         blade_status = bladerf_set_sample_rate(dev, rx, rx_fs, &rx_fs);
         blade_status = bladerf_set_bandwidth(dev, rx, rx_bw, &rx_bw);
 
-        tx_freq = rx_freq;
-        tx_fs = 50e6;
-        tx_bw = 50e6;
+        //tx_freq = rx_freq;
+        //tx_fs = 50e6;
+        //tx_bw = 50e6;
         blade_status = bladerf_set_frequency(dev, tx, tx_freq);
         blade_status = bladerf_get_frequency(dev, tx, &tx_freq);
         blade_status = bladerf_set_sample_rate(dev, tx, tx_fs, &tx_fs);
@@ -341,15 +341,15 @@ int main(int argc, char** argv)
         // the *2 is because one sample consists of one I and one Q.  The data should be packed IQIQIQIQIQIQ...
         //samples.resize(num_samples*2);
 
-        double freq_step = (rx_fs)/(double)num_rx_samples;
+        //double freq_step = (rx_fs)/(double)num_rx_samples;
 
-        double f_min = (rx_freq - (span>>1)) * 1.0e-6;
-        double f_max = (rx_freq + (span>>1)) * 1.0e-6;
+        //double f_min = (rx_freq - (span>>1)) * 1.0e-6;
+        //double f_max = (rx_freq + (span>>1)) * 1.0e-6;
 
-        uint32_t sp = (uint32_t)((rx_fs - span) / (2.0 * freq_step));
-        uint32_t sp2 = (uint32_t)(span / freq_step);
+        //uint32_t sp = (uint32_t)((rx_fs - span) / (2.0 * freq_step));
+        //uint32_t sp2 = (uint32_t)(span / freq_step);
 
-        double scale = 1.0 / (double)(num_rx_samples);
+        //double scale = 1.0 / (double)(num_rx_samples);
 
         // ----------------------------------------------------------------------------
         // create the transmit samples
@@ -360,13 +360,13 @@ int main(int argc, char** argv)
         // for 40 MSps => 0.1334256 samples
         // ----------------------------------------------------------------------------
 
-        auto seq = maximal_length_sequence<int16_t>(3, 5);
+        auto seq = maximal_length_sequence<int16_t>(3, 4, { 0, 2 });
 
-        std::vector<complex<int16_t>> tx_c = generate_lfm_chirp(1e6, 2e6, tx_fs, 0.0001, 1800);
-        //std::vector<complex<int16_t>> tx_c = generate_pulse_iq<int16_t>(seq, 2e6, tx_fs, 10.0 / 2.0e6, 1800);
-        //std::vector<complex<int16_t>> tx_c = generate_bpsk_iq<int16_t>(seq, 1800);
+        //std::vector<complex<int16_t>> tx_c = generate_lfm_chirp(1e6, 2e6, tx_fs, 0.0001, amplitude);
+        //std::vector<complex<int16_t>> tx_c = generate_pulse_iq<int16_t>(seq, 2e6, tx_fs, 10.0 / 2.0e6, amplitude);
+        std::vector<complex<int16_t>> tx_c = generate_bpsk_iq<int16_t>(seq, amplitude);
 
-        tx_c.insert(tx_c.end(), (60 * buffer_size) - tx_c.size(), std::complex<int16_t>(0, 0));
+        tx_c.insert(tx_c.end(), (20 * buffer_size) - tx_c.size(), std::complex<int16_t>(0, 0));
         tx_c.insert(tx_c.begin(), 2*buffer_size, std::complex<int16_t>(0, 0));
 
         save_complex_data(chirp_filename, tx_c);
@@ -377,6 +377,7 @@ int main(int argc, char** argv)
         // start the rx thread
         std::thread rx_thread(RX, dev, std::ref(rx_samples));
 
+        // collect some samples
         rx_complete = false;
         while (rx_complete == false);
 
@@ -416,13 +417,14 @@ int main(int argc, char** argv)
 
         {
             */
-        while (1)
-        {
+        //while (1)
+        //{
+            // start collecting samples
             rx_complete = false;
 
-            for (uint32_t jdx = 0; jdx < 30; ++jdx)
+            //for (uint32_t jdx = 0; jdx < 30; ++jdx)
                 TX(dev, tx_c);
-            //TX(dev, tx_c);
+            TX(dev, tx_c);
             //TX(dev, tx_c);
             //TX(dev, tx_c);
             //TX(dev, tx_c);
@@ -435,9 +437,10 @@ int main(int argc, char** argv)
 
             std::cout << std::endl;
 
+            std::cout << "Press enter to continue...";
             std::cin.ignore();
 
-        }
+        //}
             //blade_status = bladerf_sync_rx(dev, (void*)samples.data(), num_samples, NULL, timeout_ms);
             //if (blade_status != 0)
             //{
@@ -453,18 +456,7 @@ int main(int argc, char** argv)
             //    c_samples[index++] = std::complex<float>((float)samples[idx], (float)samples[idx + 1]);
             //}
 
-#ifdef USE_ARRAYFIRE
-            //raw_data = af::array(num_samples, (af::cfloat*)c_samples.data())*(1/2048.0);
 
-            //af::fftInPlace(raw_data, scale);
-            ////auto a1 = af::abs(raw_data).host<float>();
-
-            //fft_data = 20 * af::log10(af::shift(af::abs(raw_data), (num_samples >> 1)));
-
-            //// show the results of the FFT in the window
-            //myWindow.plot(f, fft_data(X));
-            //myWindow.show();
-#endif
             data_file.open(data_filename, ios::out | ios::binary);
 
             if (!data_file.is_open())
