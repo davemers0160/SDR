@@ -41,9 +41,9 @@
 const double pi = 3.14159265358979323846;
 const double pi2 = 2 * 3.14159265358979323846;
 
-const bladerf_frequency hop_step = 25000;
-const bladerf_frequency start_freq = 47000000;
-const bladerf_frequency stop_freq = start_freq + 5000000;
+//bladerf_frequency hop_step = 25000;
+//const bladerf_frequency start_freq = 47000000;
+//const bladerf_frequency stop_freq = start_freq + 5000000;
 bool is_running = false;
 
 //-----------------------------------------------------------------------------
