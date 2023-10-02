@@ -251,20 +251,39 @@ int main(int argc, char** argv)
 
         while (is_running)
         {
-            hop_index = (uint32_t)(rand() % num_hops);
 
-            //printf("nios_profile = %u, rffe_profile = %u\n",freqs[hopseq[f]].qt.nios_profile, freqs[hopseq[f]].qt.rffe_profile);
-            blade_status = bladerf_sync_tx(dev, (int16_t*)samples.data(), num_samples, NULL, timeout_ms);
-            if (blade_status != 0)
-            {
-                std::cout << "Unable to send the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-            }
+            start_time = std::chrono::high_resolution_clock::now();
 
-            blade_status = bladerf_schedule_retune(dev, tx, BLADERF_RETUNE_NOW, hops[hop_index].f, &hops[hop_index].qt);
-            if (blade_status != 0) 
-            {
-                std::cout << "Failed to perform quick tune to index: " << hop_index << ". blade error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-            }
+            do {
+
+                hop_index = (uint32_t)(rand() % num_hops);
+
+                //printf("nios_profile = %u, rffe_profile = %u\n",freqs[hopseq[f]].qt.nios_profile, freqs[hopseq[f]].qt.rffe_profile);
+                blade_status = bladerf_sync_tx(dev, (int16_t*)samples.data(), num_samples, NULL, timeout_ms);
+                if (blade_status != 0)
+                {
+                    std::cout << "Unable to send the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                }
+
+                blade_status = bladerf_schedule_retune(dev, tx, BLADERF_RETUNE_NOW, hops[hop_index].f, &hops[hop_index].qt);
+                if (blade_status != 0)
+                {
+                    std::cout << "Failed to perform quick tune to index: " << hop_index << ". blade error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                }
+
+                stop_time = std::chrono::high_resolution_clock::now();
+                duration = std::chrono::duration_cast<chrono::nanoseconds>(stop_time - start_time).count();
+            } while (duration < on_time);
+
+            start_time = std::chrono::high_resolution_clock::now();
+
+            do {
+
+                stop_time = std::chrono::high_resolution_clock::now();
+                duration = std::chrono::duration_cast<chrono::nanoseconds>(stop_time - start_time).count();
+            } while (duration < off_time);
+
+
 
             //data_log_stream << (uint8_t)hop_index;
 
