@@ -139,21 +139,20 @@ int main(int argc, char** argv)
         std::cout << "time:        " << duration << std::endl;
         std::cout << "------------------------------------------------------------------" << std::endl << std::endl;
 
+        // collect some dummy samples
+        blade_status = bladerf_sync_rx(dev, (int16_t*)samples.data(), num_samples, NULL, timeout_ms);
+
         std::cout << "Ready to record.  Press enter to start:" << std::endl;
         std::cin.ignore();
-
-        // collect some dummy samples
-        blade_status = bladerf_sync_rx(dev, (void*)samples.data(), std::min(buffer_size, (uint32_t)samples.size()), NULL, timeout_ms);
-
 
         for (idx = 0; idx < rx_freq_range.size(); ++idx)
         {
             blade_status = bladerf_set_frequency(dev, rx, rx_freq_range[idx]);
             blade_status = bladerf_get_frequency(dev, rx, &rx_freq);
 
-            std::cout << "Starting capture: " << idx << " - " << num2str((uint32_t)(rx_freq / 1000000.0), "%04d") << "MHz" << std::endl;
+            std::cout << "Starting capture: " << idx << " - " << num2str((double)(rx_freq / 1000000.0), "%5.4f") << "MHz" << std::endl;
 
-            file_name = "blade_" + num2str((uint32_t)(rx_freq/1000000.0), "%04d") + "M_" + sdate + "_" + stime + ".bin";
+            file_name = "blade_F" + num2str((double)(rx_freq/1000000.0), "%5.3f") + "M_SR" + num2str((double)(sample_rate / 1000000.0), "%05.3f") + "M_" + sdate + "_" + stime + ".sc16";
 
             data_file.open(save_location + file_name, ios::out | ios::binary);
 
@@ -165,7 +164,7 @@ int main(int argc, char** argv)
             }
 
             // collect the samples
-            blade_status = bladerf_sync_rx(dev, (void*)samples.data(), num_samples, NULL, timeout_ms);
+            blade_status = bladerf_sync_rx(dev, (int16_t*)samples.data(), num_samples, NULL, timeout_ms);
             if (blade_status != 0)
             {
                 std::cout << "Unable to get the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
