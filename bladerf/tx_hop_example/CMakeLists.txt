@@ -33,6 +33,7 @@ message("Platform: " ${PLATFORM})
 string(FIND ${PROJECT_SOURCE_DIR} "/" INDEX REVERSE)
 string(SUBSTRING ${PROJECT_SOURCE_DIR} 0 ${INDEX} PR_ROOT)
 
+#------------------------------------------------------------------------------
 if(WIN32)
 
 	if(${PLATFORM} STREQUAL "Laptop")
@@ -42,8 +43,8 @@ if(WIN32)
 		set(COMMON_ROOT "C:/Projects/Common")
         set(RYML_ROOT "C:/Projects/rapidyaml")
     elseif(${PLATFORM} STREQUAL "Laptop_Beast")
-		set(COMMON_ROOT "C:/Projects/Common")
-        set(RYML_ROOT "C:/Projects/rapidyaml")
+		set(COMMON_ROOT "D:/Projects/Common")
+        set(RYML_ROOT "D:/Projects/rapidyaml")
     else()
 		set(COMMON_ROOT "C:/Projects/Common")
         set(RYML_ROOT "C:/Projects/rapidyaml")
@@ -88,6 +89,7 @@ set(project_libs ${project_libs}
     ${RYML_LIB}
     )
 
+#------------------------------------------------------------------------------
 message(" ")
 include(${COMMON_ROOT}/cmake_utils/find_bladerf.cmake)
 if(BLADERF_FOUND)
@@ -123,6 +125,7 @@ message(STATUS "----------------------------------------------------------------
 
 message(" ")
 
+#------------------------------------------------------------------------------
 include_directories(${project_includes})
 add_executable(${exe_name} ${SOURCES})
 target_link_libraries(${exe_name} ${project_libs})
