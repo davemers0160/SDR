@@ -41,6 +41,9 @@ if(WIN32)
 		set(COMMON_ROOT "C:/Projects/Common")
     elseif(${PLATFORM} STREQUAL "BEAST")
         set(COMMON_ROOT "D:/Common")
+    elseif(${PLATFORM} STREQUAL "Laptop_Beast")
+        set(COMMON_ROOT "D:/Projects/Common")
+        set(RYML_ROOT "D:/Projects/rapidyaml")
     else()
         set(COMMON_ROOT "C:/Projects/Common")
     endif()    
@@ -70,35 +73,46 @@ set(project_includes
     "include" 
     "${PR_ROOT}/common/include"
     "${COMMON_ROOT}/include"
+    "${RYML_ROOT}/include"
     )
 
-message(" ")
+#------------------------------------------------------------------------------
 include(${COMMON_ROOT}/cmake_utils/find_bladerf.cmake)
 if(BLADERF_FOUND)
     set(project_includes ${project_includes} ${BLADERF_INCLUDE_DIRS})
     set(project_libs ${project_libs} ${BLADERF_LIBS})
 endif()
 
-
 message(" ")
-message("--------------------------------------------------------------------------------")
-message("Source Files: ")
+message(STATUS "--------------------------------------------------------")
+message(STATUS "Source Files: ")
 foreach(S ${SOURCES})
-    message("  " ${S})
+    message(STATUS "  " ${S})
 endforeach()
-message("--------------------------------------------------------------------------------")
+message(STATUS "--------------------------------------------------------")
 
 message(" ")
 
-message("--------------------------------------------------------------------------------")
-message("Project Includes: ")
+message(STATUS "--------------------------------------------------------")
+message(STATUS "Project Includes: ")
 foreach(S ${project_includes})
-    message("  " ${S})
+    message(STATUS "  " ${S})
 endforeach()
-message("--------------------------------------------------------------------------------")
+message(STATUS "--------------------------------------------------------")
+
+message(" ")
+
+message(STATUS "--------------------------------------------------------")
+message(STATUS "Project Libs: ")
+foreach(S ${project_libs})
+    message(STATUS "  " ${S})
+endforeach()
+message(STATUS "--------------------------------------------------------")
+
 message(" ")
 
 
+#------------------------------------------------------------------------------
 include_directories(${project_includes})
 add_executable(${exe_name} ${SOURCES})
 target_link_libraries(${exe_name} ${project_libs})
