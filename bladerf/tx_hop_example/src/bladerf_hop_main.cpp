@@ -251,11 +251,10 @@ int main(int argc, char** argv)
 
         while (is_running)
         {
-
             start_time = std::chrono::high_resolution_clock::now();
 
-            do {
-
+            do
+            {
                 hop_index = (uint32_t)(rand() % num_hops);
 
                 //printf("nios_profile = %u, rffe_profile = %u\n",freqs[hopseq[f]].qt.nios_profile, freqs[hopseq[f]].qt.rffe_profile);
@@ -273,16 +272,20 @@ int main(int argc, char** argv)
 
                 stop_time = std::chrono::high_resolution_clock::now();
                 duration = std::chrono::duration_cast<chrono::nanoseconds>(stop_time - start_time).count();
+
             } while (duration < on_time);
 
+
+            // wait for the off_time
             start_time = std::chrono::high_resolution_clock::now();
 
-            do {
-
+            do
+            {
+                sleep_ms(1);
                 stop_time = std::chrono::high_resolution_clock::now();
                 duration = std::chrono::duration_cast<chrono::nanoseconds>(stop_time - start_time).count();
-            } while (duration < off_time);
 
+            } while (duration < on_time);
 
 
             //data_log_stream << (uint8_t)hop_index;

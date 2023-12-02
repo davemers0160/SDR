@@ -1,10 +1,10 @@
 # Analog Devices ADALM Pluto Example Projects
 This part of the repository is designed to show examples of the ADI Pluto and the IIO Library on both Windows and Linux.  Details of the [Pluto](https://wiki.analog.com/university/tools/pluto) can be found at the link.
 
-## Driver Install
+## Library and Driver Install
 The primary instructions for the installation of the IIO Library are located here: [What is libiio?](https://wiki.analog.com/resources/tools-software/linux-software/libiio)
 
-There are two options for the installation.
+There are two options for the libiio installation.
 1. Binary Install
 2. Building and Install LIBIIO from source
 -- Windows: [Building libiio in Visual Studio](https://wiki.analog.com/resources/tools-software/linux-software/building_libiio_for_windows)
@@ -12,13 +12,15 @@ There are two options for the installation.
 
 The easiest path is to install from binaries.  This should work for most efforts.  We will discuss any issues or problems with the binary install for each OS.
 
+In addition to the libiio library, the USB drivers for the Pluto will need to be installed.
+
 ### Windows
 LIBIIO Notes:
 - Navigate to the [What is libiio?](https://wiki.analog.com/resources/tools-software/linux-software/libiio) page and look for the Windows link to the binary: https://github.com/analogdevicesinc/libiio/releases
 - Select the latest release version (you may need to expand the list).  As of v0.24 the Windows install file is "libiio-0.24.gc4498c2-Windows-setup.exe"
 - Run the installer and select your language.  The installer may ask to stop certain USB interfaces.  Go ahead and stop them to install the file.  Once done click "Finish" to complete the process.
 
-PLUTO Driver Notes:
+USB Pluto Driver Notes:
 - The USB drivers are located here: [PlutoSDR-M2k-USB-Drivers](https://github.com/analogdevicesinc/plutosdr-m2k-drivers-win/releases).  Select the latest version.
 - Run the installer and follow the instructions.
 
@@ -46,10 +48,44 @@ iio_info -u ip:192.168.2.1
 
 You should get an output with no errors.  You may need to update the firmware on the PLUTO.  Follow the instruction that are located on the info.html file located on the PLUTO SDR mass storage device.
 
-## LIBIIO API
-The full API is located here: [LIBIIO API](http://analogdevicesinc.github.io/libiio/).  Select the documentation version that is commensurate with the library version.
+### Useful Commands
 
-## Projects
+Below are some useful commands for the Pluto.  These can be used to modify the Pluto for extended frequency range and allow full CPU usage.
+
+```
+# To enable frequency extension
+fw_setenv attr_name compatible
+fw_setenv attr_val ad9361
+fw_setenv compatible ad9361
+
+# Options: 1r1t, 2r2t
+fw_setenv mode 2r2t
+reboot
+
+# To disable frequency mod:
+fw_setenv attr_name
+fw_setenv attr_val
+fw_setenv mode 1r1t
+
+# To enable max cpu usage
+fw_setenv maxcpus
+
+# To disable max cpu usage
+fw_setenv maxcpus 1
+
+# To view the environment variables
+fw_printenv attr_name
+fw_printenv attr_val
+fw_printenv compatible
+fw_printenv mode
+fw_printenv maxcpus
+
+```
+
+## LIBIIO API
+The full API documentation is located here: [LIBIIO API](http://analogdevicesinc.github.io/libiio/).  Select the documentation version that is commensurate with the library version.
+
+## Projects (TODO)
 
 ### rx_example
 This is a simple example that shows how to do very basic operations using the LIBIIO library.  The code will tune the SDR, set the samplerate and receive gain.  It will record approximately 1 second worth of IQ data.
