@@ -15,6 +15,7 @@ void parse_input(std::string param_filename,
     std::vector<uint64_t>& freq_range,
     uint32_t &sample_rate,
     double &duration,
+    int32_t &rx1_gain,
     std::string &save_location
 )
 {
@@ -47,6 +48,8 @@ void parse_input(std::string param_filename,
 
         // step duration
         config["step_duration"] >> duration;
+
+        config["rx1_gain"] >> rx1_gain;
 
         config["save_location"] >> save_location;
 

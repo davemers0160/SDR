@@ -44,7 +44,7 @@ int main(int argc, char** argv)
     bladerf_frequency rx_freq = 137000000;
     bladerf_sample_rate sample_rate;
     bladerf_bandwidth rx_bw;
-    bladerf_gain rx1_gain = 60;
+    bladerf_gain rx1_gain = 20;
     
     uint32_t timeout_ms = 10000;
     const uint32_t num_buffers = 16;
@@ -72,7 +72,7 @@ int main(int argc, char** argv)
     }
 
     param_filename = argv[1];
-    parse_input(param_filename, rx_freq_range, sample_rate, duration, save_location);
+    parse_input(param_filename, rx_freq_range, sample_rate, duration, rx1_gain, save_location);
 
     num_samples = (uint64_t)(sample_rate * duration);
     rx_bw = sample_rate;
