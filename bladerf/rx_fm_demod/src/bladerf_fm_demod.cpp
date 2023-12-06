@@ -133,7 +133,7 @@ int main(int argc, char** argv)
     // FM radio station
     case 1:
         fs = 1000000;
-        rx_freq = 96600000;
+        rx_freq = 104400000;
         rx_bw = 1000000;
         f_offset = 100000;
         channel_bw = 200000;
