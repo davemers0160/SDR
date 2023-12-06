@@ -3,15 +3,18 @@
 
 # frequency step plan.  (All values in MHz)
 frequency:
-    start: 315000000
-    stop: 315000000
+    start: 5950000000
+    stop: 5950000000
     step: 20000000
     
 # sample rate for each step (MHz)
-sample_rate: 20000000
+sample_rate: 50000000
 
 # duration for each step (seconds)
-step_duration: 1.0 
+step_duration: 10.0 
+
+#rx1_gain
+rx1_gain: 30
 
 # location where each step is saved (must have "/" at the end)
-save_location: "../results/20230516/"
+save_location: "D:/Projects/data/RF/20231205/"
