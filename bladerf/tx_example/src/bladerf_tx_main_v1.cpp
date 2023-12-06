@@ -1,19 +1,23 @@
 // ----------------------------------------------------------------------------------------
 #define _CRT_SECURE_NO_WARNINGS
+#define _USE_MATH_DEFINES
+
+#include <ryml_all.hpp>
 
 #if defined(_WIN32) | defined(__WIN32__) | defined(__WIN32) | defined(_WIN64) | defined(__WIN64)
 
 #elif defined(__linux__)
 
 #endif
-// ArrayFire Includes
-//#include <arrayfire.h>
 
 #include <cstdint>
+#include <cmath>
+#include <csignal>
 #include <iostream>
 #include <sstream>
 #include <complex>
-#include <cmath>
+#include <deque>
+
 
 // bladeRF includes
 #include <libbladeRF.h>
@@ -32,23 +36,139 @@
 const double pi = 3.14159265358979323846;
 const double pi2 = 3.14159265358979323846*2;
 
-const std::complex<double> j(0, 1);
+//const std::complex<double> j(0, 1);
+
+bool is_running = false;
+
+//-----------------------------------------------------------------------------
+void sig_handler(int signo)
+{
+    if (signo == SIGINT)
+    {
+        fprintf(stderr, "received SIGINT\n");
+        is_running = false;
+        //fprintf(stderr, "received another SIGINT, aborting\n");
+        //abort();
+
+    }
+}
+//-----------------------------------------------------------------------------
+void parse_input(std::string param_filename,
+    uint64_t &center_freq,
+    int64_t &freq_sep,
+    uint32_t& sample_rate,
+    int32_t& tx1_gain,
+    uint8_t &type,
+    std::string& iq_file
+)
+{
+
+    uint32_t idx;
+
+    uint64_t start, stop, step;
+
+    try {
+        std::ifstream tmp_stream(param_filename);
+        std::stringstream buffer;
+        buffer << tmp_stream.rdbuf();
+        std::string contents = buffer.str();
+        tmp_stream.close();
+
+        ryml::Tree config = ryml::parse_in_arena(ryml::to_csubstr(contents));
+
+        // frequency step plan
+        config["center_freq"] >> center_freq;
+        config["freq_sep"] >> freq_sep;
+
+        // sample rate
+        config["sample_rate"] >> sample_rate;
+
+        config["tx1_gain"] >> tx1_gain;
+
+        config["signal_type"] >> type;
+
+        config["iq_file"] >> iq_file;
+
+    }
+    catch (std::exception& e)
+    {
+        std::cout << "Error: " << e.what() << std::endl;
+    }
+}
 
 // ----------------------------------------------------------------------------
 template<typename T>
-inline std::vector<std::complex<T>> generate_bpsk_iq(std::vector<T> s, T amplitude)
+inline std::vector<std::complex<int16_t>> generate_bpsk(std::vector<T> s, int16_t amplitude)
 {
-    uint64_t idx;
+    uint64_t idx, jdx;
 
-    std::vector<std::complex<T>> data(s.size(), std::complex<T>(0, 0));
+    std::vector<std::complex<int16_t>> data(s.size(), std::complex<T>(0, 0));
 
     for (idx = 0; idx < s.size(); ++idx)
     {
-        data[idx] = std::complex<T>(amplitude * (2 * s[idx] - 1), 0);
+        data[idx] = std::complex<int16_t>(amplitude * (2 * s[idx] - 1), 0);
     }
 
     return data;
 }
+
+// ----------------------------------------------------------------------------
+inline std::vector<std::complex<int16_t>> generate_lfm_chirp(int64_t f_start, int64_t f_stop, uint64_t fs, double signal_length, int16_t amplitude)
+{
+    uint64_t idx;
+
+    uint64_t N = (uint64_t)(fs * signal_length);
+    std::vector<std::complex<int16_t>> iq(N, std::complex<int16_t>(0, 0));
+    std::complex<double> tmp;
+    double t = 1.0 / fs;
+
+    for (idx = 0; idx < N; ++idx)
+    {
+        tmp = exp(1i * 2.0 * M_PI * (f_start * idx * t + (f_stop - f_start) * 0.5 * idx * idx * t * t / signal_length));
+        iq[idx] = std::complex<int16_t>(amplitude * tmp.real(), amplitude * tmp.imag());
+    }
+
+    return iq;
+}
+
+// ----------------------------------------------------------------------------
+//function[iq] = generate_fsk(data, amplitude, sample_rate, bit_length, center_freq, freq_separation)
+template<typename T>
+inline std::vector<std::complex<int16_t>> generate_fsk(std::vector<T> data, double amplitude, uint64_t sample_rate, double bit_length, int64_t center_freq, int64_t freq_separation)
+{
+    uint32_t idx, jdx;
+    std::complex<double> tmp_val;
+
+    uint32_t samples_per_bit = floor(sample_rate * bit_length + 0.5);
+
+    double f1 = (center_freq - freq_separation) / (double)sample_rate;
+    double f2 = (center_freq + freq_separation) / (double)sample_rate;
+
+    std::vector<std::complex<int16_t>> iq_data;
+
+    for (idx = 0; idx < data.size(); ++idx)
+    {
+        if (data[idx] == 0)
+        {
+            for (jdx = 0; jdx < samples_per_bit; ++jdx)
+            {
+                tmp_val = amplitude * (std::exp(1i * M_PI * f1 * (double)jdx));
+                iq_data.push_back(std::complex<int16_t>(tmp_val.real(), tmp_val.imag()));
+            }
+        }
+        else
+        {
+            for (jdx = 0; jdx < samples_per_bit; ++jdx)
+            {
+                tmp_val = amplitude * (std::exp(1i * M_PI * f2 * (double)jdx));
+                iq_data.push_back(std::complex<int16_t>(tmp_val.real(), tmp_val.imag()));
+            }
+        }
+
+    }
+
+    return iq_data;
+}   // end of generate_fsk
 
 // ----------------------------------------------------------------------------
 template<typename T>
@@ -100,7 +220,6 @@ int main(int argc, char** argv)
     int bladerf_num;
     int blade_status;
     bladerf_sample_rate sample_rate = 1000000;     // 10 MHz
-    bladerf_channel rx = BLADERF_CHANNEL_RX(0);
     bladerf_channel tx = BLADERF_CHANNEL_TX(0);
     bladerf_frequency tx_freq = 2500188000;// 314300000;
     //bladerf_frequency tx_freq = 2375188000;// 314300000;
@@ -113,57 +232,72 @@ int main(int argc, char** argv)
     const uint32_t num_buffers = 16;
     const uint32_t buffer_size = 1024*4;        // must be a multiple of 1024
     const uint32_t num_transfers = 8;
-    uint32_t timeout_ms = 5000;
+    uint32_t timeout_ms = 10000;
+    int64_t freq_separation;
 
-    //std::vector<uint8_t> data;
-    //std::vector<int16_t> iq_data;
+    uint8_t signal_type;
+    std::string iq_filename;
+
+    std::vector<uint8_t> data;
+
     std::vector<std::complex<int16_t>> iq_data;
-    std::complex<double> tmp_val;
+    
+    if (argc != 2)
+    {
+        std::cout << "enter parameter file..." << std::endl;
+        std::cin.ignore();
+        return 0;
+    }
+
+    std::string param_filename = argv[1];
+    parse_input(param_filename, tx_freq, freq_separation, sample_rate, tx1_gain, signal_type, iq_filename);
+
 
     //generate IQ samples - simple FSK
-    uint64_t data = 0xAB42F58C15ACFE37;     // random 64-bit data: 0xAB42F58C15ACFE37
+    uint64_t d = 0x2F58C15ACFE37AAA;     // random 64-bit data: 0xAB42F58C15ACFE37
     uint64_t bit_mask = 1;
 
     // the number of samples per bit
-    double bit_length = 1e-4;
-    uint32_t bit_samples = (uint32_t)(sample_rate * bit_length);
-
-    // the frequency offset for the FSK modulation, normalized by the sample rate
-    double freq_offset = 200000.0 / sample_rate;
+    
 
     double amplitude = 2000;
 
-    for (idx = 0; idx < sizeof(data) * 8; ++idx)
+    for (idx = 0; idx < sizeof(d)*8; ++idx)
     {
-        // if true this is a one
-        if (data & bit_mask)
-        {
-            for (jdx = 0; jdx < bit_samples; ++jdx)
-            {
-                tmp_val = amplitude * (std::exp(j * pi2 * freq_offset * (double)jdx));
-                iq_data.push_back(std::complex<int16_t>(tmp_val.real(), tmp_val.imag()));
-            }
-        }
-        // if not this is a zero
-        else
-        {
-            for (jdx = 0; jdx < bit_samples; ++jdx)
-            {
-                tmp_val = amplitude * (std::exp(j * pi2 * (-freq_offset) * (double)jdx));
-                iq_data.push_back(std::complex<int16_t>(tmp_val.real(), tmp_val.imag()));
-            }
-        }
-
+        data.push_back(d & bit_mask ? 1 : 0);
         bit_mask <<= 1;
-
     }
 
+    double bit_length = 1e-4;
+    auto seq = maximal_length_sequence<int16_t>(7, 5, { 0, 2 });
 
+    switch (signal_type)
+    {
+    // fsk
+    case 0:
 
+        iq_data = generate_fsk(data, amplitude, sample_rate, bit_length, 0, freq_separation);
+        break;
 
-    //std::string filename = "D:/data/fm_test_1M.sc16";
+    case 1:
+        iq_data = generate_lfm_chirp(-freq_separation, freq_separation, sample_rate, bit_length, amplitude);
+        break;
 
-    //read_iq_data(filename, iq_data);
+    case 2:
+        iq_data = generate_bpsk(seq, amplitude);
+        break;
+
+    case 3:
+        read_iq_data(iq_filename, iq_data);
+        break;
+
+    default:
+        break;
+    }
+    
+    uint32_t num_buff = ceil(iq_data.size() / (double)buffer_size) + 2;
+
+    iq_data.insert(iq_data.end(), num_buff * buffer_size - iq_data.size(), std::complex<int16_t>(0, 0));
 
 
     // the number of IQ samples is the number of samples divided by 2
@@ -223,7 +357,14 @@ int main(int argc, char** argv)
 
         idx = 0;
 
-        while (idx<50000)
+        is_running = true;
+
+        if (signal(SIGINT, sig_handler) == SIG_ERR)
+        {
+            std::cerr << "Unable to catch SIGINT signals" << std::endl;
+        }
+
+        while (is_running)
         {
             blade_status = bladerf_sync_tx(dev, (int16_t*)iq_data.data(), num_samples, NULL, timeout_ms);
 

@@ -37,27 +37,38 @@ if(WIN32)
 
 	if(${PLATFORM} STREQUAL "Laptop")
 		set(COMMON_ROOT "D:/Common")
+        set(RYML_ROOT "D:/Projects/rapidyaml")
 	elseif(${PLATFORM} STREQUAL "LaptopN")
 		set(COMMON_ROOT "C:/Projects/Common")
+        set(RYML_ROOT "C:/Projects/rapidyaml")
     elseif(${PLATFORM} STREQUAL "BEAST")
         set(COMMON_ROOT "D:/Common")
+        set(RYML_ROOT "D:/Projects/rapidyaml")
     elseif(${PLATFORM} STREQUAL "Laptop_Beast")
         set(COMMON_ROOT "D:/Projects/Common")
         set(RYML_ROOT "D:/Projects/rapidyaml")
     else()
-        set(COMMON_ROOT "D:/Common")
+        set(COMMON_ROOT "C:/Projects/Common")
+        set(RYML_ROOT "C:/Projects/rapidyaml")
     endif()    
-    
+        
+    set(RYML_LIB "${RYML_ROOT}/build/Release/ryml.lib")
+
 else()
 
     if(${PLATFORM} STREQUAL "MainGear")
         set(_ECLIPSE_VERSION "3.8")
         set(COMMON_ROOT "~/Projects/Common")
+        set(RYML_ROOT "~/Projects/rapidyaml")
     elseif(${PLATFORM} STREQUAL "HPC")
         set(COMMON_ROOT "~/Projects/Common")
+        set(RYML_ROOT "~/Projects/rapidyaml")
     else()
         set(COMMON_ROOT "~/Projects/Common")
+        set(RYML_ROOT "~/Projects/rapidyaml")
     endif()
+    
+    set(RYML_LIB "${RYML_ROOT}/build/Release/libryml.so")
     
 endif()
 
@@ -73,8 +84,14 @@ set(project_includes
     "include" 
     "${PR_ROOT}/common/include"
     "${COMMON_ROOT}/include"
+    "${RYML_ROOT}/include"
     )
 
+set(project_libs ${project_libs} 
+    ${RYML_LIB}
+    )
+    
+#------------------------------------------------------------------------------
 message(" ")
 include(${COMMON_ROOT}/cmake_utils/find_bladerf.cmake)
 if(BLADERF_FOUND)
@@ -82,15 +99,7 @@ if(BLADERF_FOUND)
     set(project_libs ${project_libs} ${BLADERF_LIBS})
 endif()
 
-#find_package(ArrayFire)
-#if(ArrayFire_Unified_FOUND)
-#    set(project_includes ${project_includes} ${ArrayFire_INCLUDE_DIRS})
-#    set(project_libs ${project_libs} ArrayFire::af)
-#    message("ArrayFire_Unified found!")
-#else()
-#    message("ArrayFire_Unified not found...")
-#endif()
-
+#------------------------------------------------------------------------------
 message(" ")
 
 message(STATUS "--------------------------------------------------------------------------------")
@@ -120,6 +129,7 @@ message(STATUS "----------------------------------------------------------------
 
 message(" ")
 
+#------------------------------------------------------------------------------
 include_directories(${project_includes})
 add_executable(${exe_name} ${SOURCES})
 target_link_libraries(${exe_name} ${project_libs})
