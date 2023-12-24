@@ -25,7 +25,6 @@ inline std::ostream& operator<< (
     out << "  instance:      " << item.instance << std::endl;
     out << "  manufacturer:  " << std::string(item.manufacturer) << std::endl;
     out << "  product:       " << std::string(item.product) << std::endl;
-    out << std::endl;
     return out;
 }
 

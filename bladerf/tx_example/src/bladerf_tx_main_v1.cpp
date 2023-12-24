@@ -54,9 +54,10 @@ void sig_handler(int signo)
 }
 //-----------------------------------------------------------------------------
 void parse_input(std::string param_filename,
-    uint64_t &center_freq,
-    int64_t &freq_sep,
+    uint64_t& center_freq,
+    int64_t& freq_sep,
     uint32_t& sample_rate,
+    uint32_t& bw,
     int32_t& tx1_gain,
     uint8_t &type,
     std::string& iq_file
@@ -82,6 +83,8 @@ void parse_input(std::string param_filename,
 
         // sample rate
         config["sample_rate"] >> sample_rate;
+
+        config["bandwidth"] >> bw;
 
         config["tx1_gain"] >> tx1_gain;
 
@@ -250,15 +253,11 @@ int main(int argc, char** argv)
     }
 
     std::string param_filename = argv[1];
-    parse_input(param_filename, tx_freq, freq_separation, sample_rate, tx1_gain, signal_type, iq_filename);
-
+    parse_input(param_filename, tx_freq, freq_separation, sample_rate, tx_bw, tx1_gain, signal_type, iq_filename);
 
     //generate IQ samples - simple FSK
     uint64_t d = 0x2F58C15ACFE37AAA;     // random 64-bit data: 0xAB42F58C15ACFE37
     uint64_t bit_mask = 1;
-
-    // the number of samples per bit
-    
 
     double amplitude = 2000;
 
@@ -303,6 +302,11 @@ int main(int argc, char** argv)
     // the number of IQ samples is the number of samples divided by 2
     num_samples = iq_data.size();
 
+    // get the libbladeRF API version
+    struct bladerf_version version = { 0,0,0," " };
+    bladerf_version(&version);
+    std::cout << "libbladerf API version: " << std::string(version.describe) << std::endl;
+
     // ----------------------------------------------------------------------------
     int num_devices = bladerf_get_device_list(&device_list);
 
@@ -311,14 +315,13 @@ int main(int argc, char** argv)
     if (bladerf_num < 0)
     {
         std::cout << "could not detect any bladeRF devices..." << std::endl;
+        cin.ignore();
         return 0;
     }
 
     std::cout << std::endl;
 
     try{
-
-        std::cout << std::endl;
         
         blade_status = bladerf_open(&dev, ("*:serial=" +  std::string(device_list[bladerf_num].serial)).c_str());
         if (blade_status != 0)
@@ -333,20 +336,19 @@ int main(int argc, char** argv)
             std::cout << "Unable to get the device info: " << std::string(bladerf_strerror(blade_status)) << std::endl;
             return blade_status;
         }
-        std::cout << std::endl << dev_info << std::endl;
+        std::cout << dev_info;
+
+        version;
+        bladerf_fpga_version(dev, &version);
+        std::cout << "  FPGA version:  " << std::string(version.describe) << std::endl;
 
         // set the frequency, sample_rate and bandwidth
         blade_status = bladerf_set_frequency(dev, tx, tx_freq);
         blade_status = bladerf_set_sample_rate(dev, tx, sample_rate, &sample_rate);
         blade_status = bladerf_set_bandwidth(dev, tx, tx_bw, &tx_bw);
 
-        // the gain 
-        //blade_status = bladerf_set_gain_mode(dev, tx, BLADERF_GAIN_MANUAL);
-        //blade_status = bladerf_set_gain(dev, tx, tx1_gain);
-
         // configure the sync to receive/transmit data
         blade_status = bladerf_sync_config(dev, BLADERF_TX_X1, BLADERF_FORMAT_SC16_Q11, num_buffers, buffer_size, num_transfers, timeout_ms);
-        
         if (blade_status != 0) 
         {
             std::cout << "Failed to configure TX sync interface: " << bladerf_strerror(blade_status) << std::endl;
@@ -354,6 +356,19 @@ int main(int argc, char** argv)
 
         // enable the TX channel RF frontend
         blade_status = bladerf_enable_module(dev, BLADERF_TX, true);
+
+        // the gain must be set after the module has been enabled
+        //blade_status = bladerf_set_gain_mode(dev, tx, BLADERF_GAIN_MGC);
+        blade_status = bladerf_set_gain(dev, tx, tx1_gain);
+        blade_status = bladerf_get_gain(dev, tx, &tx1_gain);
+
+        // print out the specifics
+        std::cout << std::endl << "------------------------------------------------------------------" << std::endl;
+        std::cout << "sample_rate: " << sample_rate << std::endl;
+        std::cout << "tx_freq:     " << tx_freq << std::endl;
+        std::cout << "tx_bw:       " << tx_bw << std::endl;
+        std::cout << "tx1_gain:    " << tx1_gain << std::endl;
+        std::cout << "------------------------------------------------------------------" << std::endl << std::endl;
 
         idx = 0;
 
@@ -366,6 +381,7 @@ int main(int argc, char** argv)
 
         while (is_running)
         {
+            std::cout << "Sending signal #" << idx << std::endl;
             blade_status = bladerf_sync_tx(dev, (int16_t*)iq_data.data(), num_samples, NULL, timeout_ms);
 
             if (blade_status != 0)
@@ -373,8 +389,7 @@ int main(int argc, char** argv)
                 std::cout << "Unable to get the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
                 return blade_status;
             }
-
-            std::cout << "Sending signal #" << idx << std::endl;
+          
             ++idx;
         }
 

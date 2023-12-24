@@ -2,20 +2,25 @@
 # file used to setup the recording of a sweep across a large bandwidth
 
 # frequency step plan.  (All values in MHz)
-center_freq: 5000000000
+center_freq: 165000000
 freq_sep: 20000
     
-# sample rate for each step (MHz)
-sample_rate: 30000000
+# sample rate (Hz)
+sample_rate: 882000
+
+# filter bandwidth
+bandwidth: 441000
 
 # duration for each step (seconds)
 #step_duration: 10.0 
 
 #rx1_gain
-tx1_gain: 30000
+tx1_gain: 50
+
 
 # signal_type: 0 - fsk, 1 - lfm, 2 - bpsk, 3 - iq_file
-signal_type: 0
+signal_type: 3
 
 # location where each step is saved (must have "/" at the end)
-iq_file: "../../../../data/RADAR_TEST/radar_test_m1_30M.bin"
+#iq_file: "../../../../data/RADAR_TEST/radar_test_m1_30M.bin"
+iq_file: "../../../../../data/humpback_882K.sc16"
