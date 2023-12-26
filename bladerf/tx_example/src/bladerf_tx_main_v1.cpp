@@ -122,12 +122,14 @@ inline std::vector<std::complex<int16_t>> generate_lfm_chirp(int64_t f_start, in
 
     uint64_t N = (uint64_t)(fs * signal_length);
     std::vector<std::complex<int16_t>> iq(N, std::complex<int16_t>(0, 0));
-    std::complex<double> tmp;
+    std::complex<double> tmp, d;
+
     double t = 1.0 / fs;
 
     for (idx = 0; idx < N; ++idx)
     {
-        tmp = exp(1i * 2.0 * M_PI * (f_start * idx * t + (f_stop - f_start) * 0.5 * idx * idx * t * t / signal_length));
+        d = 1i * 2.0 * M_PI * (f_start * idx * t + (f_stop - f_start) * 0.5 * idx * idx * t * t / signal_length);
+        tmp = exp(d);
         iq[idx] = std::complex<int16_t>(amplitude * tmp.real(), amplitude * tmp.imag());
     }
 
