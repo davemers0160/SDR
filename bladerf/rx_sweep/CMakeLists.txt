@@ -62,7 +62,7 @@ else()
         set(COMMON_ROOT "${HOME}/Projects/Common")
     endif()
 
-    set(RYML_LIB "${RYML_ROOT}/build/Release/libryml.so")
+    set(RYML_LIB "/usr/local/lib/libryml.a")
 
 endif()
 
