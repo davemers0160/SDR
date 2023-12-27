@@ -122,14 +122,14 @@ inline std::vector<std::complex<int16_t>> generate_lfm_chirp(int64_t f_start, in
 
     uint64_t N = (uint64_t)(fs * signal_length);
     std::vector<std::complex<int16_t>> iq(N, std::complex<int16_t>(0, 0));
-    std::complex<double> tmp, d;
+    std::complex<double> tmp, v;
 
     double t = 1.0 / fs;
 
     for (idx = 0; idx < N; ++idx)
     {
-        d = 1i * 2.0 * M_PI * (f_start * idx * t + (f_stop - f_start) * 0.5 * idx * idx * t * t / signal_length);
-        tmp = exp(d);
+        v = 1i * 2.0 * M_PI * (f_start * idx * t + (f_stop - f_start) * 0.5 * idx * idx * t * t / signal_length);
+        tmp = std::exp(v);
         iq[idx] = std::complex<int16_t>(amplitude * tmp.real(), amplitude * tmp.imag());
     }
 
@@ -142,7 +142,7 @@ template<typename T>
 inline std::vector<std::complex<int16_t>> generate_fsk(std::vector<T> data, double amplitude, uint64_t sample_rate, double bit_length, int64_t center_freq, int64_t freq_separation)
 {
     uint32_t idx, jdx;
-    std::complex<double> tmp_val;
+    std::complex<double> tmp_val, v;
 
     uint32_t samples_per_bit = floor(sample_rate * bit_length + 0.5);
 
@@ -157,7 +157,8 @@ inline std::vector<std::complex<int16_t>> generate_fsk(std::vector<T> data, doub
         {
             for (jdx = 0; jdx < samples_per_bit; ++jdx)
             {
-                tmp_val = amplitude * (std::exp(1i * M_PI * f1 * (double)jdx));
+                v = 1i * M_PI * f1 * (double)jdx;
+                tmp_val = amplitude * std::exp(v);
                 iq_data.push_back(std::complex<int16_t>(tmp_val.real(), tmp_val.imag()));
             }
         }
@@ -165,7 +166,8 @@ inline std::vector<std::complex<int16_t>> generate_fsk(std::vector<T> data, doub
         {
             for (jdx = 0; jdx < samples_per_bit; ++jdx)
             {
-                tmp_val = amplitude * (std::exp(1i * M_PI * f2 * (double)jdx));
+                v = 1i * M_PI * f2 * (double)jdx;
+                tmp_val = amplitude * std::exp(v);
                 iq_data.push_back(std::complex<int16_t>(tmp_val.real(), tmp_val.imag()));
             }
         }
