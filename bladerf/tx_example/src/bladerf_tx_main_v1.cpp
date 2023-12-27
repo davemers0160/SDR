@@ -29,6 +29,7 @@
 #include "file_parser.h"
 #include "file_ops.h"
 #include "iq_utils.h"
+//#include "sdr_functions.h"
 
 // Project Includes
 #include <bladerf_common.h>
@@ -179,7 +180,7 @@ inline std::vector<std::complex<int16_t>> generate_fsk(std::vector<T> data, doub
 
 // ----------------------------------------------------------------------------
 template<typename T>
-inline std::vector<T> maximal_length_sequence(uint16_t N, uint16_t rep, std::vector<uint16_t> taps = { 0, (uint16_t)(N - 1) })
+inline std::vector<T> maximal_length_sequence(uint16_t N, uint16_t rep, std::vector<uint16_t> taps)
 {
     uint64_t idx, jdx;
     uint16_t tmp;

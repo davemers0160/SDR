@@ -10,7 +10,7 @@
 
 // ----------------------------------------------------------------------------
 template<typename T>
-inline std::vector<T> maximal_length_sequence(uint16_t N, std::vector<uint16_t> taps = { 0, (uint16_t)(N - 1) })
+inline std::vector<T> maximal_length_sequence(uint16_t N, std::vector<uint16_t> taps)
 {
     uint64_t idx, jdx;
     uint16_t tmp;
