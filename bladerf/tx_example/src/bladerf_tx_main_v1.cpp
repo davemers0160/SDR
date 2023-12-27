@@ -293,6 +293,12 @@ int main(int argc, char** argv)
 
     case 3:
         read_iq_data(iq_filename, iq_data);
+        if (iq_data.size() == 0)
+        {
+            std::cout << "IQ file is empty.  Check file path and try again.  Press enter to close..." << std::endl;
+            std::cin.ignore();
+            exit(1);
+        }
         break;
 
     default:
