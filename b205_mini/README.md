@@ -50,7 +50,7 @@ The full API is located here: [UHD Development Manual](https://files.ettus.com/m
 
 A knowledge base for the B205mini can be found here: https://kb.ettus.com/B200/B210/B200mini/B205mini#B205mini-i
 
-## Projects
+## Repository Projects
 
 ### rx_example
 This is a simple example that shows how to do very basic operations using the UHD library.  The code will tune the SDR, set the samplerate and receive gain.  It will record approximately 1 second worth of IQ data.
