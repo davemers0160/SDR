@@ -64,7 +64,7 @@ else()
         set(COMMON_ROOT "~/Projects/Common")
         set(RYML_ROOT "~/Projects/rapidyaml")
     endif()
-    set(RYML_LIB "/usr/local/lib/libryml.a")
+    set(RYML_LIB "/usr/local/lib/libryml.so")
     
 endif()
 
