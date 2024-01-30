@@ -91,7 +91,7 @@ int main(int argc, char** argv)
 
     uint64_t num_samples;
     const uint32_t num_buffers = 16;
-    const uint32_t buffer_size = 1024*8;        // must be a multiple of 1024
+    const uint32_t buffer_size = 1024*4;        // must be a multiple of 1024
     const uint32_t num_transfers = 8;
     uint32_t timeout_ms = 10000;
     uint32_t hop_index;
@@ -164,6 +164,10 @@ int main(int argc, char** argv)
 
         // create the hop sequence
         uint32_t num_hops = (uint32_t)std::floor((stop_freq - start_freq) / (double)hop_step);
+
+        if (num_hops == 0)
+            ++num_hops;
+
         for (idx = 0; idx < num_hops; ++idx)
         {
 
@@ -285,7 +289,7 @@ int main(int argc, char** argv)
                 stop_time = std::chrono::high_resolution_clock::now();
                 duration = std::chrono::duration_cast<chrono::nanoseconds>(stop_time - start_time).count();
 
-            } while (duration < on_time);
+            } while (duration < off_time);
 
 
             //data_log_stream << (uint8_t)hop_index;
