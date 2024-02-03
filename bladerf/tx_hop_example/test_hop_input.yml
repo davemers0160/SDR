@@ -1,13 +1,13 @@
 # BladeRF YAML file
 # file used to setup the recording of a sweep across a large bandwidth
 
-# frequency step plan.  (All values in MHz)
+# frequency step plan.  (All values in Hz)
 frequency:
     start: 2000000000
     stop: 2500000000
     step: 5000000
     
-# sample rate for each step (MHz)
+# sample rate for each step (Hz)
 sample_rate: 30000000
 
 # timing (nanoseconds)
@@ -16,7 +16,7 @@ timing:
     off_time: 4e9
 
 # tx gain
-tx_gain: 60000
+tx_gain: 66
 
 # location where the test IQ file is located
 IQ_file: "../../../../data/RADAR_TEST/radar_test_m1_30M.bin"
