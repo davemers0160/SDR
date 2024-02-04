@@ -3,6 +3,7 @@ Description=Start BladeRF
 After=multi-user.target
 
 [Service]
+ExecStartPre=/bin/sleep 20
 ExecStart=/home/${USER}/Projects/SDR/bladerf/tx_hop_example/build/./blade_tx /home/${USER}/Projects/SDR/bladerf/tx_hop_example/test_hop_input.yaml
 
 [Install]
