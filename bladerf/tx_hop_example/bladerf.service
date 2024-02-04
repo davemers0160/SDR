@@ -13,3 +13,5 @@ WantedBy=multi-user.target
 # useful commands
 # systemctl status bladerf.service
 # sudo systemctl start bladerf.service
+# sudo systemctl stop bladerf.service
+
