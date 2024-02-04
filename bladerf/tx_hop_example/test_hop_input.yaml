@@ -3,20 +3,20 @@
 
 # frequency step plan.  (All values in Hz)
 frequency:
-    start: 2000000000
-    stop: 2500000000
-    step: 5000000
+    start: 1000000000
+    stop:  1003000000
+    step:     1000000
     
 # sample rate for each step (Hz)
-sample_rate: 30000000
+sample_rate: 10000000
 
 # timing (nanoseconds)
 timing:
-    on_time: 1e9
-    off_time: 4e9
+    on_time: 1e6
+    off_time: 499e6
 
 # tx gain
 tx_gain: 66
 
 # location where the test IQ file is located
-IQ_file: "../../../../data/RADAR_TEST/radar_test_m1_30M.bin"
+IQ_file: "../../../../../data/test_bpsk_10M.bin"
