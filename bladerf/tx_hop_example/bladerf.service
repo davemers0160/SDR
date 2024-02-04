@@ -2,9 +2,14 @@
 Description=Start BladeRF
 After=multi-user.target
 
+# note: ${USER} will need to be changed to the actual username
 [Service]
 ExecStartPre=/bin/sleep 20
 ExecStart=/home/${USER}/Projects/SDR/bladerf/tx_hop_example/build/./blade_tx /home/${USER}/Projects/SDR/bladerf/tx_hop_example/test_hop_input.yaml
 
 [Install]
 WantedBy=multi-user.target
+
+# useful commands
+# systemctl status bladerf.service
+# sudo systemctl start bladerf.service

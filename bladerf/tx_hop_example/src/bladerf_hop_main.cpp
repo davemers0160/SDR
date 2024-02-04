@@ -317,7 +317,7 @@ int main(int argc, char** argv)
     bladerf_close(dev);
 
     std::cout << "Press Enter to close..." << std::endl;
-    std::cin.ignore();    
+    //std::cin.ignore();    
     
     return 0;
     
