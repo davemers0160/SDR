@@ -2,7 +2,9 @@
 Description=Start BladeRF
 After=multi-user.target
 
+#------------------------------------------------------------------------------
 # note: ${USER} will need to be changed to the actual username
+#------------------------------------------------------------------------------
 [Service]
 ExecStartPre=/bin/sleep 20
 ExecStart=/home/${USER}/Projects/SDR/bladerf/tx_hop_example/build/./blade_tx /home/${USER}/Projects/SDR/bladerf/tx_hop_example/test_hop_input.yaml
@@ -15,3 +17,9 @@ WantedBy=multi-user.target
 # sudo systemctl start bladerf.service
 # sudo systemctl stop bladerf.service
 
+# To add and enable the service after it has been copied to: /lib/systemd/system/
+# reload the systemd daemon
+# sudo systemctl daemon-reload
+
+# enable the bladerf serrvice and autostart
+# sudo systemctl enable bladerf.service
