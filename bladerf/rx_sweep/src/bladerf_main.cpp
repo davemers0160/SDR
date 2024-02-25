@@ -140,7 +140,7 @@ int main(int argc, char** argv)
         std::cout << "------------------------------------------------------------------" << std::endl << std::endl;
 
         // collect some dummy samples
-        blade_status = bladerf_sync_rx(dev, (int16_t*)samples.data(), num_samples, NULL, timeout_ms);
+        blade_status = bladerf_sync_rx(dev, (int16_t*)samples.data(), 2 * buffer_size, NULL, timeout_ms);
 
         std::cout << "Ready to record.  Press enter to start:" << std::endl;
         std::cin.ignore();
