@@ -67,7 +67,7 @@ std::unique_ptr<SDR_BASE> SDR_BASE::build()
     // initialize the 
     bladerf_dev->init_rx();
 
-    bladerf_dev->set_rx_frequency(96700000);
+    bladerf_dev->set_rx_frequency(105000000);
     bladerf_dev->set_rx_samplerate(1000000);
     bladerf_dev->set_rx_gain(30, BLADERF_GAIN_MANUAL);
     bladerf_dev->set_rx_bandwidth(1000000);
@@ -133,12 +133,12 @@ int main(int argc, char** argv)
     // FM radio station
     case 1:
         fs = 1000000;
-        rx_freq = 104400000;
+        rx_freq = 95700000;
         rx_bw = 1000000;
         f_offset = 100000;
         channel_bw = 200000;
         audio_freq = 44100;
-        n_taps = 100;
+        n_taps = 101;
         break;
         // FM radio station
     case 2:
