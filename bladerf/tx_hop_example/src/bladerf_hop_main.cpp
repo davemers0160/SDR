@@ -82,7 +82,7 @@ int main(int argc, char** argv)
     bladerf_channel tx = BLADERF_CHANNEL_TX(0);
     bladerf_frequency start_freq = 1500000000;// 314300000;
     bladerf_frequency stop_freq = 1500000000;// 314300000;
-    bladerf_frequency hop_step = 500000000;// 314300000;
+    int64_t hop_step = 500000000;// 314300000;
     bladerf_bandwidth tx_bw = 20000000;
     bladerf_gain tx1_gain = 60000;
 
@@ -95,6 +95,7 @@ int main(int argc, char** argv)
     const uint32_t num_transfers = 8;
     uint32_t timeout_ms = 10000;
     uint32_t hop_index;
+    uint16_t hop_type;
 
     std::vector<std::complex<int16_t>> samples;
     std::string iq_filename;
@@ -118,7 +119,7 @@ int main(int argc, char** argv)
 
     // read in the parameters
     std::string param_filename = argv[1];
-    read_hop_params(param_filename, start_freq, stop_freq, hop_step, sample_rate, on_time, off_time, tx1_gain, iq_filename);
+    read_hop_params(param_filename, start_freq, stop_freq, hop_step, sample_rate, hop_type, on_time, off_time, tx1_gain, iq_filename);
 
     // initialize a random number generator
     srand((unsigned)time(NULL));
@@ -162,8 +163,11 @@ int main(int argc, char** argv)
         }
         std::cout << dev_info << std::endl;
 
+        if (start_freq > stop_freq)
+            hop_step *= -1;
+
         // create the hop sequence
-        uint32_t num_hops = (uint32_t)std::floor((stop_freq - start_freq) / (double)hop_step);
+        uint32_t num_hops = (uint32_t)std::abs(std::floor(((double)stop_freq - (double)start_freq) / (double)hop_step));
 
         if (num_hops == 0)
             ++num_hops;
@@ -240,7 +244,19 @@ int main(int argc, char** argv)
         //data_log_stream.open(logfile_name, ios::out | ios::binary);
 
         // set initial frequency
-        hop_index = (uint32_t)(rand() % num_hops);
+        switch (hop_type)
+        {
+        case 0:
+            hop_index = 0;
+            break;
+        case 1:
+            hop_index = (uint32_t)(rand() % num_hops);
+            break;
+        default:
+            hop_index = 0;
+            break;
+        }
+
         blade_status = bladerf_set_frequency(dev, tx, hops[hop_index].f);
 
         //data_log_stream << (uint8_t)hop_index;
@@ -259,13 +275,25 @@ int main(int argc, char** argv)
 
             do
             {
-                hop_index = (uint32_t)(rand() % num_hops);
-
+  
                 //printf("nios_profile = %u, rffe_profile = %u\n",freqs[hopseq[f]].qt.nios_profile, freqs[hopseq[f]].qt.rffe_profile);
                 blade_status = bladerf_sync_tx(dev, (int16_t*)samples.data(), num_samples, NULL, timeout_ms);
                 if (blade_status != 0)
                 {
                     std::cout << "Unable to send the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                }
+
+                switch (hop_type)
+                {
+                case 0:
+                    hop_index = (hop_index + 1) % num_hops;
+                    break;
+                case 1:
+                    hop_index = (uint32_t)(rand() % num_hops);
+                    break;
+                default:
+                    hop_index = (hop_index + 1) % num_hops;
+                    break;
                 }
 
                 blade_status = bladerf_schedule_retune(dev, tx, BLADERF_RETUNE_NOW, hops[hop_index].f, &hops[hop_index].qt);

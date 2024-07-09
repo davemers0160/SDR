@@ -3,9 +3,11 @@
 
 # frequency step plan.  (All values in Hz)
 frequency:
-    start: 1000000000
-    stop:  1003000000
-    step:     1000000
+    start: 1003000000
+    stop:  1002940000
+    step:       40000
+
+hop_type: 0
     
 # sample rate for each step (Hz)
 sample_rate: 10000000

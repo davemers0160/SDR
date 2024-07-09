@@ -15,8 +15,9 @@
 inline void read_hop_params(std::string param_filename,
     bladerf_frequency& start_freq,
     bladerf_frequency& stop_freq,
-    bladerf_frequency& hop_step,
+    int64_t& hop_step,
     bladerf_sample_rate& sample_rate,
+    uint16_t& hop_type,
     double& on_time,
     double& off_time,
     bladerf_gain& tx1_gain,
@@ -39,6 +40,9 @@ inline void read_hop_params(std::string param_filename,
         frequency["start"] >> start_freq;
         frequency["stop"] >> stop_freq;
         frequency["step"] >> hop_step;
+
+        // hop_type: 0 - linear, 1 - random
+        config["hop_type"] >> hop_type;
 
         // sample_rate
         config["sample_rate"] >> sample_rate;
