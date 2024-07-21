@@ -14,6 +14,7 @@
 #include <sstream>
 #include <vector>
 #include <utility>
+#include <csignal>
 
 // bladeRF includes
 #include <libbladeRF.h>
@@ -27,7 +28,12 @@
 #include "bladerf_common.h"
 #include "parse_blade_input.h"
 
+//-----------------------------------------------------------------------------
+// Globals
+bool is_running = false;
 
+
+//-----------------------------------------------------------------------------
 std::string convert_metric_prefix(double num)
 {
     uint32_t idx;
@@ -66,6 +72,20 @@ std::string convert_metric_prefix(double num)
     return mp;
 
 }
+
+//-----------------------------------------------------------------------------
+void sig_handler(int signo)
+{
+    if (signo == SIGINT)
+    {
+        fprintf(stderr, "received SIGINT\n");
+        is_running = false;
+        //fprintf(stderr, "received another SIGINT, aborting\n");
+        //abort();
+
+    }
+}
+
 
 // ----------------------------------------------------------------------------
 int main(int argc, char** argv)
@@ -173,52 +193,65 @@ int main(int argc, char** argv)
         // print out the specifics
         std::cout << std::endl << "------------------------------------------------------------------" << std::endl;
         std::cout << "sample_rate: " << sample_rate << std::endl;
-        std::cout << "rx_freq:     " << rx_freq_range[0] << std::endl;
+        std::cout << "rx_freq:     " << rx_freq << std::endl;
         std::cout << "rx_bw:       " << rx_bw << std::endl;
         std::cout << "rx1_gain:    " << rx1_gain << std::endl;
         std::cout << "time:        " << duration << std::endl;
         std::cout << "------------------------------------------------------------------" << std::endl << std::endl;
 
         // collect some dummy samples
-        blade_status = bladerf_sync_rx(dev, (int16_t*)samples.data(), 2 * buffer_size, NULL, timeout_ms);
+        blade_status = bladerf_sync_rx(dev, (int16_t*)samples.data(), 8 * buffer_size, NULL, timeout_ms);
 
-        std::cout << "Ready to record.  Press enter to start:" << std::endl;
-        std::cin.ignore();
+        // setup signal handler
+        is_running = true;
 
-        for (idx = 0; idx < rx_freq_range.size(); ++idx)
+        if (signal(SIGINT, sig_handler) == SIG_ERR)
         {
-            blade_status = bladerf_set_frequency(dev, rx, rx_freq_range[idx]);
-            blade_status = bladerf_get_frequency(dev, rx, &rx_freq);
-
-            std::cout << "Starting capture: " << idx << " - " << num2str((double)(rx_freq / 1000000.0), "%5.4f") << "MHz" << std::endl;
-            
-            //file_name = "blade_F" + num2str((double)(rx_freq / 1000000.0), "%5.3f") + "M_SR" + num2str((double)(sample_rate / 1000000.0), "%05.3f") + "M_" + sdate + "_" + stime + ".sc16";
-            file_name = "blade_F" + convert_metric_prefix((double)(rx_freq)) + "_SR" + convert_metric_prefix((double)(sample_rate)) + "_" + sdate + "_" + stime + ".sc16";
-
-            data_file.open(save_location + file_name, ios::out | ios::binary);
-
-            if (!data_file.is_open())
-            {
-                std::cout << "Could not save data. Closing... " << std::endl;
-                std::cin.ignore();
-                return 0;
-            }
-
-            // collect the samples
-            blade_status = bladerf_sync_rx(dev, (int16_t*)samples.data(), num_samples, NULL, timeout_ms);
-            if (blade_status != 0)
-            {
-                std::cout << "Unable to get the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-                return blade_status;
-            }
-
-            std::cout << "Capture complete!  Saving data..." << std::endl << std::endl;
-            data_file.write(reinterpret_cast<const char*>(samples.data()), samples.size() * sizeof(int16_t));
-
-            data_file.close();
-
+            std::cerr << "Unable to catch SIGINT signals" << std::endl;
         }
 
+        while(is_running)
+        {
+
+            std::cout << "Ready to record.  Press enter to start:" << std::endl;
+            std::cin.ignore();
+
+            get_current_time(sdate, stime);
+
+            for (idx = 0; idx < rx_freq_range.size(); ++idx)
+            {
+                blade_status = bladerf_set_frequency(dev, rx, rx_freq_range[idx]);
+                blade_status = bladerf_get_frequency(dev, rx, &rx_freq);
+
+                std::cout << "Starting capture: " << idx << " - " << num2str((double)(rx_freq / 1000000.0), "%5.4f") << "MHz" << std::endl;
+            
+                //file_name = "blade_F" + num2str((double)(rx_freq / 1000000.0), "%5.3f") + "M_SR" + num2str((double)(sample_rate / 1000000.0), "%05.3f") + "M_" + sdate + "_" + stime + ".sc16";
+                file_name = "blade_F" + convert_metric_prefix((double)(rx_freq)) + "_SR" + convert_metric_prefix((double)(sample_rate)) + "_" + sdate + "_" + stime + ".sc16";
+
+                data_file.open(save_location + file_name, ios::out | ios::binary);
+
+                if (!data_file.is_open())
+                {
+                    std::cout << "Could not save data. Closing... " << std::endl;
+                    std::cin.ignore();
+                    return 0;
+                }
+
+                // collect the samples
+                blade_status = bladerf_sync_rx(dev, (int16_t*)samples.data(), num_samples, NULL, timeout_ms);
+                if (blade_status != 0)
+                {
+                    std::cout << "Unable to get the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                    return blade_status;
+                }
+
+                std::cout << "Capture complete!  Saving data..." << std::endl << std::endl;
+                data_file.write(reinterpret_cast<const char*>(samples.data()), samples.size() * sizeof(int16_t));
+
+                data_file.close();
+
+            }
+        }
         // disable the rx channel RF frontend
         blade_status = bladerf_enable_module(dev, BLADERF_RX, false);
 
