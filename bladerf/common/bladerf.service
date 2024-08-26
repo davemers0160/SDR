@@ -1,5 +1,5 @@
 [Unit]
-Description=Start BladeRF
+Description=Start BladeRF TX
 After=multi-user.target
 
 #------------------------------------------------------------------------------
@@ -8,8 +8,8 @@ After=multi-user.target
 [Service]
 #User=XXXXXXX
 #Group=XXXXXXX
-ExecStartPre=/bin/sleep 20
-ExecStart=/home/${USER}/Projects/SDR/bladerf/tx_hop_example/build/./blade_tx /home/${USER}/Projects/SDR/bladerf/tx_hop_example/test_hop_input.yaml
+ExecStartPre=/bin/sleep 10
+ExecStart=/home/${USER}/Projects/SDR/bladerf/tx_example/build/./blade_tx /home/${USER}/Projects/SDR/bladerf/tx_example/test_input.yaml
 
 [Install]
 WantedBy=multi-user.target

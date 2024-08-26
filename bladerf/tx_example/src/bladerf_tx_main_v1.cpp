@@ -401,16 +401,21 @@ int main(int argc, char** argv)
         blade_status = bladerf_enable_module(dev, BLADERF_TX, true);
 
         // the gain must be set after the module has been enabled
-        //blade_status = bladerf_set_gain_mode(dev, tx, BLADERF_GAIN_MGC);
+        blade_status = bladerf_set_gain_mode(dev, tx, BLADERF_GAIN_MANUAL);
         blade_status = bladerf_set_gain(dev, tx, tx1_gain);
         blade_status = bladerf_get_gain(dev, tx, &tx1_gain);
+        if (blade_status != 0)
+        {
+            std::cout << "Error setting TX gain - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+        }
 
         // print out the specifics
         std::cout << std::endl << "------------------------------------------------------------------" << std::endl;
-        std::cout << "sample_rate: " << sample_rate << std::endl;
-        std::cout << "tx_freq:     " << tx_freq << std::endl;
-        std::cout << "tx_bw:       " << tx_bw << std::endl;
-        std::cout << "tx1_gain:    " << tx1_gain << std::endl;
+        std::cout << "Transmitter:" << std::endl;
+        std::cout << "  tx_freq:    " << tx_freq << std::endl;
+        std::cout << "  sample_rate:" << sample_rate << std::endl;
+        std::cout << "  tx_bw:      " << tx_bw << std::endl;
+        std::cout << "  tx1_gain:   " << tx1_gain << std::endl;
         std::cout << "------------------------------------------------------------------" << std::endl << std::endl;
 
         idx = 0;

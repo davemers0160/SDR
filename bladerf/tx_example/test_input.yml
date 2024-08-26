@@ -1,15 +1,15 @@
 # BladeRF YAML file
-# file used to setup the recording of a sweep across a large bandwidth
+# file used to setup the Tx of a specific modulation or IQ file
 
 # frequency step plan.  (All values in MHz)
-center_freq: 165000000
+center_freq: 167000000
 freq_sep: 20000
     
 # sample rate (Hz)
 sample_rate: 882000
 
 # filter bandwidth
-bandwidth: 441000
+bandwidth: 200000
 
 # duration for each step (seconds)
 #step_duration: 10.0 
