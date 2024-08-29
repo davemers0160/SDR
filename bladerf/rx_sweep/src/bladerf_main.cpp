@@ -135,7 +135,7 @@ int main(int argc, char** argv)
     parse_input(param_filename, rx_freq_range, sample_rate, duration, rx1_gain, save_location);
 
     num_samples = (uint64_t)(sample_rate * duration);
-    rx_bw = sample_rate;
+    rx_bw = 30000000;
 
     int num_devices = bladerf_get_device_list(&device_list);
 

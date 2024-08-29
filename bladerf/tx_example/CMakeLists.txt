@@ -68,7 +68,9 @@ else()
         set(RYML_ROOT "~/Projects/rapidyaml")
     endif()
     
-    set(RYML_LIB "/usr/local/lib/libryml.a")
+    set(RYML_LIB "/usr/local/lib/libryml.so")
+
+    set(CMAKE_CXX_FLAGS "-O3")
     
 endif()
 
