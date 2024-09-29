@@ -61,9 +61,9 @@ std::string convert_metric_prefix(double num)
     v = (num / prefix[idx].first);
 
     if(v < 0)
-        p = ceil(num / prefix[idx].first);
+        p = ceil(num / prefix[idx].first - 0.5);
     else
-        p = floor(num / prefix[idx].first);
+        p = floor(num / prefix[idx].first + 0.5);
 
     s = abs(floor((v-p)*1000 + 0.5));
 
@@ -135,7 +135,7 @@ int main(int argc, char** argv)
     parse_input(param_filename, rx_freq_range, sample_rate, duration, rx1_gain, save_location);
 
     num_samples = (uint64_t)(sample_rate * duration);
-    rx_bw = 30000000;
+    rx_bw = 50000000;
 
     int num_devices = bladerf_get_device_list(&device_list);
 
