@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-#  Root CMake file for the bladeRF recieve example
+#  Root CMake file for the project
 # ----------------------------------------------------------------------------
 #
 # To perform an out of source build do the following on the command line:
@@ -17,10 +17,12 @@
 #
 
 
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.9)
 
 PROJECT(bladerf_apt_demod)
 set(exe_name "apt_demod")
+
+set(CMAKE_CXX_STANDARD 17)
 
 set(PLATFORM "$ENV{PLATFORM}" CACHE INTERNAL "Copied from environment variable")
 if("${PLATFORM}" STREQUAL "")
@@ -61,7 +63,6 @@ include("${PR_ROOT}/common/platform_paths.cmake")
     
 # endif()
 
-include(${COMMON_ROOT}/cmake_utils/use_cpp_11.cmake)
 include(${COMMON_ROOT}/cmake_utils/use_sse_avx.cmake)
 
 # look for any *.c and *.cpp files
@@ -149,6 +150,8 @@ if(WIN32)
 
 endif()
 
+# ----------------------------------------------------------------------------
 message(" ")
 message(STATUS "Build Complete!")
+message(STATUS "cmake --build . --config Release -- -j4")
 message(" ")
