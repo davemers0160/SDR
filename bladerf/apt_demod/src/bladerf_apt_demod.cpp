@@ -14,7 +14,9 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
-
+#include <mutex>
+#include <thread>
+#include <condition_variable>
 #include <complex>
 
 // bladeRF includes
@@ -27,7 +29,7 @@
 // Custom Includes
 #include "num2string.h"
 #include "get_current_time.h"
-#include "file_parser.h"
+//#include "file_parser.h"
 #include "file_ops.h"
 #include "sleep_ms.h"
 #include "dsp/dsp_windows.h"
@@ -44,12 +46,49 @@
 #define BUILD_BLADERF
 
 // Project Includes
-//#include <bladerf_common.h>
+#include <bladerf_common.h>
 #include "bladerf_sdr.h"
 
-
+//-----------------------------------------------------------------------------
 const std::complex<double> j = std::complex<double>(0, 1);
 const double pi = 3.14159265358979;
+
+std::vector<std::vector<std::complex<int16_t>>> iq_data_q(2);
+std::mutex read_mutex;
+std::condition_variable data_ready_cv;
+volatile std::vector<bool> data_ready(2, false);
+volatile int32_t read_index = 0;
+volatile int32_t write_index = 0;
+volatile bool run = false;
+
+//-----------------------------------------------------------------------------
+void get_data(uint32_t sample_rate, struct bladerf* dev)
+{
+    int blade_status;
+    uint32_t timeout_ms = 10000;
+
+    double capture_time = 2.0;
+    uint32_t num_samples = floor(sample_rate* capture_time + 0.5);
+
+    iq_data_q[0].resize(num_samples);
+    iq_data_q[1].resize(num_samples);
+
+    while (run)
+    {
+        
+        blade_status = bladerf_sync_rx(dev, (void*)iq_data_q[write_index].data(), num_samples, NULL, timeout_ms);
+        if (blade_status != 0)
+        {
+            std::cout << "Unable to get the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+        }
+        //data_ready[write_index] = true;
+
+        write_index = (write_index + 1) & 0x01;
+
+    }
+
+}
+
 
 //-----------------------------------------------------------------------------
 template<class T, class U>
@@ -236,7 +275,6 @@ std::vector<T> am_demod(std::vector<T>& v1, T scale)
 }   // end of am_demod
 
 
-
 //-----------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
@@ -246,18 +284,13 @@ int main(int argc, char** argv)
     uint64_t num_samples;
     uint64_t block_size = 624000;
 
-
-
     // number of samples per second
     uint64_t sample_rate = 624000;
-
 
     // number of taps to create a low pass filters
     uint64_t rf_taps = 201;
     uint64_t fm_taps = 101;
     uint64_t audio_taps = 201;
-
-
 
     // offset from the center where we want to demodulate(Hz)
     int64_t rf_freq_offset = 0; // 115750;
@@ -292,6 +325,18 @@ int main(int argc, char** argv)
 
     cv::Mat sync_pulse = (cv::Mat_<double>(1,39) << -128, -128, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, -128, -128, -128, -128, -128, -128, -128);
 
+    cv::Mat cv_x3;
+    cv::Mat cv_x4;
+    cv::Mat cv_x5;
+    cv::Mat cv_x6;
+    cv::Mat cv_x7;
+    cv::Mat cv_x8;
+    cv::Mat cv_x9;
+    cv::Mat cv_x10;
+    cv::Mat cv_x11;
+    cv::Mat cv_x12;
+    cv::Mat img;
+
     try{
 
         // test code
@@ -302,7 +347,7 @@ int main(int argc, char** argv)
         // number of samples is equal to the number seconds to record times the samplerate
         num_samples = 15 * 3600 * sample_rate;
 
-        std::vector<complex<int16_t>> samples;
+        std::vector<std::complex<int16_t>> samples;
         //std::string filename = "../../rx_record/recordings/137M800_0M624__640s_test4.bin";
         //std::string filename = "../../rx_record/recordings/137M000_1M000__600s_20221120_0955.bin";
         std::string filename = "D:/data/RF/20240224/blade_F137.912M_SR0.624M_20240224_222353.sc16";
@@ -383,20 +428,15 @@ int main(int argc, char** argv)
 
 
         // apply low pass filter to the signal 
-        cv::Mat cv_x3;
         cv::filter2D(cv_x1, cv_x3, CV_64FC2, cv_lpf_rf, cv::Point(-1, -1), cv::BORDER_REFLECT_101);
 
-
-
+        
         // decimate the signal
         //x4 = x3(dec_seq);
         //std::vector<complex<float>> x4 = decimate_vec(cf_samples, rf_decimation_factor);
         //std::vector<complex<float>> x4 = decimate_vec(x3, rf_decimation_factor);
-        cv::Mat cv_x4;
         cv_cmplx_decimate(cv_x3, cv_x4, (double)rf_decimation_factor);
 
-
-        cv::Mat cv_x5;
         cv::filter2D(cv_x4, cv_x5, CV_64FC2, cv_lpf_fm, cv::Point(-1, -1), cv::BORDER_REFLECT_101);
 
 
@@ -405,7 +445,6 @@ int main(int argc, char** argv)
         //x5 = af::atan2(af::imag(x5), af::real(x5)) * phasor_scale;
         //std::vector<float> x6 = polar_discriminator(x4, phasor_scale);
         //std::vector<float> x5 = polar_discriminator(x4, phasor_scale);
-        cv::Mat cv_x6;
         cv_polar_discriminator(cv_x5, cv_x6, phasor_scale);
 
         // run the audio through the low pass de-emphasis filter
@@ -415,12 +454,8 @@ int main(int argc, char** argv)
         // run the audio through a second low pass filter before decimation
         //x6 = af::fir(af_lpf_a, x6);
 
-        cv::Mat cv_x7;
         cv_x7 = cv_frequency_rotate(cv_x6, (double)am_offset / (double)decimated_sample_rate);
 
-
-
-        cv::Mat cv_x8;
         cv::filter2D(cv_x7, cv_x8, CV_64FC2, cv_lpf_am, cv::Point(-1, -1), cv::BORDER_REFLECT_101);
 
 
@@ -441,10 +476,9 @@ int main(int argc, char** argv)
 
         //cv::Mat cv_x9 = 5.0 * cv_x7;
 
-        cv::Mat cv_x9 = cv_cmplx_abs(cv_x8);
+        cv_x9 = cv_cmplx_abs(cv_x8);
 
         // downsample the AM
-        cv::Mat cv_x10;
         cv_decimate(cv_x9, cv_x10, audio_decimation_factor);
 
         cv::minMaxIdx(cv_x10, &x_min, &x_max);
@@ -459,13 +493,11 @@ int main(int argc, char** argv)
 
         // Normalize the signal to px luminance values, discretize
         //std::vector<float> x11(x9.size());
-        cv::Mat cv_x11;
 
         cv_x11 = (255.0 / delta) * (cv_x10 - x_min);
 
         cv_x11 = clamp(cv_x11, 0, 255);
 
-        cv::Mat cv_x12;
 
         cv_x11.convertTo(cv_x12, CV_8UC1);
 
@@ -512,7 +544,7 @@ int main(int argc, char** argv)
             ++idx;
         }
 
-        cv::Mat img = cv::Mat::zeros(peaks.size(), 2080, CV_8UC1);
+        img = cv::Mat::zeros(peaks.size(), 2080, CV_8UC1);
 
         //for idx = 1:(size(peaks, 1) - 2)
         //    img = cat(1, img, d5(peaks(idx, 1) :peaks(idx, 1) + 2079)');
@@ -525,12 +557,13 @@ int main(int argc, char** argv)
             cv_x12(r).copyTo(img(cv::Rect(0, idx, 2080, 1)));
 
         }
+        
 
         bp = 1;
         //sdr->stop();
-        cv::namedWindow("test", cv::WINDOW_NORMAL);
-        cv::imshow("test", img);
-        cv::waitKey(0);
+        //cv::namedWindow("test", cv::WINDOW_NORMAL);
+        //cv::imshow("test", img);
+        //cv::waitKey(0);
 
     }
     catch(std::exception e)

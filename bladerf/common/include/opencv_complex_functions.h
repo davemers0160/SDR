@@ -114,6 +114,9 @@ inline cv::Mat cv_frequency_rotate(cv::Mat& src, double fr)
 {
     uint64_t index = 0;
     std::complex<double> r;
+    std::complex<double> j(0,1);
+
+    std::complex<double> c1 = -2.0 * j * M_PI * fr;
 
     cv::Mat dst = cv::Mat::zeros(src.rows, src.cols, CV_64FC2);
 
@@ -123,7 +126,7 @@ inline cv::Mat cv_frequency_rotate(cv::Mat& src, double fr)
 
     for (; src_itr != src_end; ++src_itr, ++dst_itr)
     {
-        r = std::exp(-2.0 * 1i * M_PI * fr * (double)index);
+        r = std::exp(c1 * (double)index);
         (*dst_itr)[0] = *src_itr * r.real();
         (*dst_itr)[1] = *src_itr * r.imag();
 
