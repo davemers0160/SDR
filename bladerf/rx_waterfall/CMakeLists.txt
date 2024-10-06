@@ -16,11 +16,10 @@
 # linux: cmake --build . --config Release -- -j4
 #
 
-
 cmake_minimum_required(VERSION 3.9)
 
-PROJECT(bladerf_apt_demod)
-set(exe_name "apt_demod")
+PROJECT(bladerf_rx_waterfall)
+set(exe_name "blade_rx_waterfall")
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -35,33 +34,7 @@ message("Platform: " ${PLATFORM})
 string(FIND ${PROJECT_SOURCE_DIR} "/" INDEX REVERSE)
 string(SUBSTRING ${PROJECT_SOURCE_DIR} 0 ${INDEX} PR_ROOT)
 
-
 include("${PR_ROOT}/common/platform_paths.cmake")
-
-# if(WIN32)
-
-	# if(${PLATFORM} STREQUAL "Laptop")
-		# set(COMMON_ROOT "D:/Common")
-	# elseif(${PLATFORM} STREQUAL "LaptopN")
-		# set(COMMON_ROOT "C:/Projects/Common")
-    # elseif(${PLATFORM} STREQUAL "BEAST")
-        # set(COMMON_ROOT "D:/Common")
-    # else()
-        # set(COMMON_ROOT "C:/Projects/Common")
-    # endif()    
-    
-# else()
-
-    # if(${PLATFORM} STREQUAL "MainGear")
-        # set(_ECLIPSE_VERSION "3.8")
-        # set(COMMON_ROOT "~/Projects/Common")
-    # elseif(${PLATFORM} STREQUAL "HPC")
-        # set(COMMON_ROOT "~/Projects/Common")
-    # else()
-        # set(COMMON_ROOT "~/Projects/Common")
-    # endif()
-    
-# endif()
 
 include(${COMMON_ROOT}/cmake_utils/use_sse_avx.cmake)
 
@@ -83,17 +56,8 @@ if(BLADERF_FOUND)
     set(project_libs ${project_libs} ${BLADERF_LIBS})
 endif()
 
-# find_package(ArrayFire HINTS "C:/Program Files/ArrayFire/v3/cmake")
-# if(ArrayFire_Unified_FOUND)
-    # set(project_includes ${project_includes} ${ArrayFire_INCLUDE_DIRS})
-    # set(project_libs ${project_libs} ArrayFire::af)
-    # message("ArrayFire_Unified found!")
-    # add_definitions(-DUSE_ARRAYFIRE)
-# else()
-    # message("ArrayFire_Unified not found...")
-# endif()
-
-# look for opencv
+#------------------------------------------------------------------------------
+# find OpenCV
 message(STATUS "--------------------------------------------------------------------------------")
 message(STATUS "Looking for OpenCV installation...")
 find_package(OpenCV REQUIRED)
@@ -106,39 +70,41 @@ else()
 endif()
 message(STATUS "--------------------------------------------------------------------------------")
 
-
+#------------------------------------------------------------------------------
 message(" ")
-message("--------------------------------------------------------------------------------")
+message(STATUS "--------------------------------------------------------------------------------")
 message("Source Files: ")
 foreach(S ${SOURCES})
     message("  " ${S})
 endforeach()
-message("--------------------------------------------------------------------------------")
+message(STATUS "--------------------------------------------------------------------------------")
 
 message(" ")
 
-message("--------------------------------------------------------------------------------")
+message(STATUS "--------------------------------------------------------------------------------")
 message("Project Includes: ")
 foreach(S ${project_includes})
     message("  " ${S})
 endforeach()
-message("--------------------------------------------------------------------------------")
+message(STATUS "--------------------------------------------------------------------------------")
 
 message(" ")
 
-message("--------------------------------------------------------------------------------")
+message(STATUS "--------------------------------------------------------------------------------")
 message("Project Libraries: ")
 foreach(S ${project_libs})
     message("  " ${S})
 endforeach()
-message("--------------------------------------------------------------------------------")
+message(STATUS "--------------------------------------------------------------------------------")
 
 message(" ")
 
+#------------------------------------------------------------------------------
 include_directories(${project_includes})
 add_executable(${exe_name} ${SOURCES})
 target_link_libraries(${exe_name} ${project_libs})
 
+#------------------------------------------------------------------------------
 if(WIN32)
     message("MSVC Version: " ${MSVC_VERSION})
     # uncomment for MSVC and cmake greater than 3.6.0
