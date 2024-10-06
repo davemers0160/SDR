@@ -19,6 +19,9 @@
 #include <mutex>
 #include <condition_variable>
 
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui.hpp> 
+
 // bladeRF includes
 #include <libbladeRF.h>
 #include <bladeRF2.h>
@@ -94,12 +97,32 @@ void sig_handler(int signo)
     }
 }
 
+cv::Mat pushLineAndPop(cv::Mat newLine, std::vector<cv::Mat> &lines)
+{
+
+    lines.push_back(newLine.clone());
+    cv::Mat ret = lines[0];
+    lines.erase(lines.begin());  // remove from queue
+    return ret;
+}
+
+cv::Mat stackImages(uint32_t h, uint32_t w, std::vector<cv::Mat>& lines)
+{
+    cv::Mat result(h, w, lines[0].type());  // full image
+    for (size_t i = 0; i < lines.size(); ++i) 
+    {
+        cv::Rect roi(0, h - (i + 1) * 1, w, 1);
+        lines[lines.size() - 1 - i].copyTo(result(roi));  // copy lines bottom to top
+    }
+
+    return result;
+}
 
 // ----------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
-
-    uint32_t idx;
+    int bp = 0;
+    uint64_t idx, jdx;
     
     // bladeRF variable
     struct bladerf_devinfo *device_list = NULL;
@@ -121,6 +144,13 @@ int main(int argc, char** argv)
     const uint32_t num_buffers = 16;
     const uint32_t num_transfers = 8;
     double t;
+    double scale = 1.0/2048.0;
+
+    uint32_t fft_size = 1024;
+    std::vector<double> magnitude(fft_size, 0.0);
+
+    std::string window_name = "Spectrogram";
+    cv::namedWindow(window_name, cv::WINDOW_NORMAL);
 
     if (argc == 2)
     {
@@ -214,6 +244,11 @@ int main(int argc, char** argv)
 
         uint64_t index = 0;
 
+        uint32_t img_h = 400;
+        std::vector<cv::Mat> lines(img_h, cv::Mat::zeros(1, fft_size, CV_64FC1));
+        cv::Mat stackedImage;
+        //lines.push_back(cv::Mat::zeros(1, fft_size, CV_64FC1));
+
         while(rx_run == true)
         {
             rx_complete = false;
@@ -230,6 +265,22 @@ int main(int argc, char** argv)
             std::cout << "read_signal = " << read_signal << std::endl;
             uint64_t mem_address = read_signal * num_samples;
 
+            // do the abs value of the data in fft_size groups
+            for(idx=0; idx<num_samples; idx += fft_size)
+            {
+                // this transforms the data smaples from complex<int16_t> to double
+                std::transform(samples.begin()+ mem_address + idx, samples.begin() + mem_address + idx + fft_size, magnitude.begin(), [scale](std::complex<int16_t> x) { return std::abs(std::complex<double>(x.real() * scale, x.imag() * scale)); });
+            
+                cv::Mat new_line = cv::Mat(1, fft_size, CV_64FC1, magnitude.data());
+                cv::Mat tmp1 = pushLineAndPop(new_line, lines);
+                stackedImage = stackImages(img_h, fft_size, lines);
+
+                cv::imshow(window_name, stackedImage);
+                cv::waitKey(1);           
+            }
+
+
+
             //std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Simulate work
 
             //for (idx = 0; idx < num_samples; ++idx)
@@ -240,6 +291,7 @@ int main(int argc, char** argv)
 
             //lock.unlock();
             //data_cv.notify_one();
+            bp = 1;
         }
 
         rx_thread.join();
