@@ -43,7 +43,7 @@ std::atomic<bool> rx_complete = false;
 
 const uint32_t buffer_size = 1024 * 4;        // must be a multiple of 1024
 const uint32_t timeout_ms = 10000;
-uint32_t N = 200;
+uint32_t N = 10;
 
 std::vector<std::complex<int16_t>> samples;
 
@@ -244,9 +244,9 @@ int main(int argc, char** argv)
 
         uint64_t index = 0;
 
-        uint32_t img_h = 400;
+        uint32_t img_h = 600;
         std::vector<cv::Mat> lines(img_h, cv::Mat::zeros(1, fft_size, CV_64FC1));
-        cv::Mat stackedImage;
+        cv::Mat stackedImage = cv::Mat::zeros(600, fft_size, CV_64FC1);
         //lines.push_back(cv::Mat::zeros(1, fft_size, CV_64FC1));
 
         while(rx_run == true)
@@ -262,7 +262,7 @@ int main(int argc, char** argv)
             data_cv.wait(lock, [] { return rx_complete == true; });
             //data_cv.wait(lock);
 
-            std::cout << "read_signal = " << read_signal << std::endl;
+            //std::cout << "read_signal = " << read_signal << std::endl;
             uint64_t mem_address = read_signal * num_samples;
 
             // do the abs value of the data in fft_size groups
@@ -272,14 +272,18 @@ int main(int argc, char** argv)
                 std::transform(samples.begin()+ mem_address + idx, samples.begin() + mem_address + idx + fft_size, magnitude.begin(), [scale](std::complex<int16_t> x) { return std::abs(std::complex<double>(x.real() * scale, x.imag() * scale)); });
             
                 cv::Mat new_line = cv::Mat(1, fft_size, CV_64FC1, magnitude.data());
-                cv::Mat tmp1 = pushLineAndPop(new_line, lines);
-                stackedImage = stackImages(img_h, fft_size, lines);
+                //cv::Mat tmp1 = pushLineAndPop(new_line, lines);
+                //stackedImage = stackImages(img_h, fft_size, lines);
 
-                cv::imshow(window_name, stackedImage);
-                cv::waitKey(1);           
+                cv::Mat bottom = stackedImage.rowRange(1, stackedImage.rows).clone();
+
+                cv::vconcat(bottom, new_line.clone(), stackedImage);
+
+       
             }
 
-
+                cv::imshow(window_name, stackedImage);
+                cv::waitKey(1);    
 
             //std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Simulate work
 
