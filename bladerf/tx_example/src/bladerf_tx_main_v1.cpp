@@ -269,9 +269,9 @@ int main(int argc, char** argv)
 
     std::vector<int16_t> samples;
     uint64_t num_samples;
-    const uint32_t num_buffers = 16;
-    const uint32_t buffer_size = 1024*4;        // must be a multiple of 1024
-    const uint32_t num_transfers = 8;
+    const uint32_t num_buffers = 1024;
+    const uint32_t buffer_size = 1024*8;        // must be a multiple of 1024
+    const uint32_t num_transfers = 64;
     uint32_t timeout_ms = 10000;
     int64_t freq_separation;
 
@@ -429,7 +429,7 @@ int main(int argc, char** argv)
 
         while (is_running)
         {
-            std::cout << "Sending signal #" << idx << std::endl;
+            //std::cout << "Sending signal #" << idx << std::endl;
             blade_status = bladerf_sync_tx(dev, (int16_t*)iq_data.data(), num_samples, NULL, timeout_ms);
 
             if (blade_status != 0)
