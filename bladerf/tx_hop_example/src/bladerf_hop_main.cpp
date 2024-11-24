@@ -197,6 +197,8 @@ int main(int argc, char** argv)
                 std::cin.ignore();
             }
 
+            std::cout << idx << ": " << hops[idx].f << ", nios_profile: " << hops[idx].qt.nios_profile << ", rffe_profile: " << (uint16_t)hops[idx].qt.rffe_profile << std::endl;
+
         }
 
         // set the sample_rate and bandwidth
