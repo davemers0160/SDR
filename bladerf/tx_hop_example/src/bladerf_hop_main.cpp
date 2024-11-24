@@ -172,6 +172,8 @@ int main(int argc, char** argv)
         if (num_hops == 0)
             ++num_hops;
 
+        std::cout << "number of hops: " << num_hops << std::endl << std::endl;
+
         for (idx = 0; idx < num_hops; ++idx)
         {
 
@@ -271,10 +273,10 @@ int main(int argc, char** argv)
 
         while (is_running)
         {
-            start_time = std::chrono::high_resolution_clock::now();
+            //start_time = std::chrono::high_resolution_clock::now();
 
-            do
-            {
+            //do
+            //{
   
                 //printf("nios_profile = %u, rffe_profile = %u\n",freqs[hopseq[f]].qt.nios_profile, freqs[hopseq[f]].qt.rffe_profile);
                 blade_status = bladerf_sync_tx(dev, (int16_t*)samples.data(), num_samples, NULL, timeout_ms);
@@ -302,22 +304,22 @@ int main(int argc, char** argv)
                     std::cout << "Failed to perform quick tune to index: " << hop_index << ". blade error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
                 }
 
-                stop_time = std::chrono::high_resolution_clock::now();
-                duration = std::chrono::duration_cast<chrono::nanoseconds>(stop_time - start_time).count();
+            //    stop_time = std::chrono::high_resolution_clock::now();
+            //    duration = std::chrono::duration_cast<chrono::nanoseconds>(stop_time - start_time).count();
 
-            } while (duration < on_time);
+            //} while (duration < on_time);
 
 
             // wait for the off_time
-            start_time = std::chrono::high_resolution_clock::now();
+            //start_time = std::chrono::high_resolution_clock::now();
 
-            do
-            {
-                sleep_ms(1);
-                stop_time = std::chrono::high_resolution_clock::now();
-                duration = std::chrono::duration_cast<chrono::nanoseconds>(stop_time - start_time).count();
+            //do
+            //{
+            //    sleep_ms(1);
+            //    stop_time = std::chrono::high_resolution_clock::now();
+            //    duration = std::chrono::duration_cast<chrono::nanoseconds>(stop_time - start_time).count();
 
-            } while (duration < off_time);
+            //} while (duration < off_time);
 
 
             //data_log_stream << (uint8_t)hop_index;
