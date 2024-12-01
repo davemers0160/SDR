@@ -90,9 +90,9 @@ int main(int argc, char** argv)
     double off_time;
 
     uint64_t num_samples;
-    const uint32_t num_buffers = 16;
+    const uint32_t num_buffers = 1024;
     const uint32_t buffer_size = 1024*4;        // must be a multiple of 1024
-    const uint32_t num_transfers = 8;
+    const uint32_t num_transfers = 64;
     uint32_t timeout_ms = 10000;
     uint32_t hop_index;
     uint16_t hop_type;
@@ -279,6 +279,7 @@ int main(int argc, char** argv)
 
             //do
             //{
+                //std::cout << "hop_index: " << hop_index << std::endl;
   
                 //printf("nios_profile = %u, rffe_profile = %u\n",freqs[hopseq[f]].qt.nios_profile, freqs[hopseq[f]].qt.rffe_profile);
                 blade_status = bladerf_sync_tx(dev, (int16_t*)samples.data(), num_samples, NULL, timeout_ms);
@@ -300,11 +301,19 @@ int main(int argc, char** argv)
                     break;
                 }
 
-                blade_status = bladerf_schedule_retune(dev, tx, BLADERF_RETUNE_NOW, hops[hop_index].f, &hops[hop_index].qt);
+                // normal tuning
+                blade_status = bladerf_set_frequency(dev, tx, hops[hop_index].f);
                 if (blade_status != 0)
                 {
-                    std::cout << "Failed to perform quick tune to index: " << hop_index << ". blade error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                    std::cout << "Failed to perform frequency change to: " << hops[hop_index].f << " -- blade error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
                 }
+
+                // quicktune
+                //blade_status = bladerf_schedule_retune(dev, tx, BLADERF_RETUNE_NOW, hops[hop_index].f, &hops[hop_index].qt);
+                //if (blade_status != 0)
+                //{
+                //    std::cout << "Failed to perform quick tune to index: " << hop_index << ". blade error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                //}
 
             //    stop_time = std::chrono::high_resolution_clock::now();
             //    duration = std::chrono::duration_cast<chrono::nanoseconds>(stop_time - start_time).count();
