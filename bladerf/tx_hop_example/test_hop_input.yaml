@@ -1,16 +1,21 @@
-# BladeRF YAML file
-# file used to setup the recording of a sweep across a large bandwidth
+# BladeRF YAML file for config of hop data
 
 # frequency step plan.  (All values in Hz)
 frequency:
-    start: 1003000000
-    stop:  1002940000
-    step:       40000
+    #start: 2075000000
+    #stop:  2770000000
+    start: 1650000000
+    stop:  2650000000
+    step:     0000000
 
+# 0: linear, 1: random
 hop_type: 0
     
 # sample rate for each step (Hz)
-sample_rate: 10000000
+sample_rate: 20000000
+
+# filter bandwidth
+bandwidth: 200000
 
 # timing (nanoseconds)
 timing:
@@ -18,7 +23,7 @@ timing:
     off_time: 499e6
 
 # tx gain
-tx_gain: 66
+tx_gain: 65
 
 # location where the test IQ file is located
-IQ_file: "../../../../../data/test_bpsk_10M.bin"
+IQ_file: "../../../../data/RF/test.sc16"
