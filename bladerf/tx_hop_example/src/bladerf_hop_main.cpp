@@ -91,8 +91,8 @@ int main(int argc, char** argv)
 
     uint64_t num_samples;
     const uint32_t num_buffers = 1024;
-    const uint32_t buffer_size = 1024*4;        // must be a multiple of 1024
-    const uint32_t num_transfers = 64;
+    const uint32_t buffer_size = 1024*40;        // must be a multiple of 1024
+    const uint32_t num_transfers = 128;
     uint32_t timeout_ms = 10000;
     uint32_t hop_index;
     uint16_t hop_type;
@@ -277,6 +277,8 @@ int main(int argc, char** argv)
             std::cerr << "Unable to catch SIGINT signals" << std::endl;
         }
         
+        std::cout << std::endl << "Sending signals..." << std::endl << std::endl;
+
 
         while (is_running)
         {
