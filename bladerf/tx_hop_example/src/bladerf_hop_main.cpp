@@ -121,6 +121,10 @@ int main(int argc, char** argv)
     std::string param_filename = argv[1];
     read_hop_params(param_filename, start_freq, stop_freq, hop_step, sample_rate, hop_type, on_time, off_time, tx1_gain, iq_filename);
 
+    std::vector<bladerf_frequency> hop_sequence;
+    generate_range(start_freq, stop_freq, (double)hop_step, hop_sequence);
+    uint32_t num_hops = hop_sequence.size();
+
     // initialize a random number generator
     srand((unsigned)time(NULL));
 
@@ -163,23 +167,24 @@ int main(int argc, char** argv)
         }
         std::cout << dev_info << std::endl;
 
-        if (start_freq > stop_freq)
-            hop_step *= -1;
+        //if (start_freq > stop_freq)
+        //    hop_step *= -1;
 
-        // create the hop sequence
-        uint32_t num_hops = (uint32_t)std::abs(std::floor(((double)stop_freq - (double)start_freq) / (double)hop_step));
+        //// create the hop sequence
+        //uint32_t num_hops = (uint32_t)std::abs(std::floor(((double)stop_freq - (double)start_freq) / (double)hop_step));
 
-        if (num_hops == 0)
-            ++num_hops;
+        //if (num_hops == 0)
+        //    ++num_hops;
 
         std::cout << "number of hops: " << num_hops << std::endl << std::endl;
 
         for (idx = 0; idx < num_hops; ++idx)
         {
 
-            auto f = start_freq + (idx * hop_step);
+            //auto f = start_freq + (idx * hop_step);
             hop_params p;
-            p.f = start_freq + (idx * hop_step);
+            //p.f = start_freq + (idx * hop_step);
+            p.f = hop_sequence[idx];
 
             hops.push_back(p);
 
