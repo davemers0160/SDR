@@ -17,6 +17,7 @@ inline void read_hop_params(std::string param_filename,
     bladerf_frequency& stop_freq,
     int64_t& hop_step,
     bladerf_sample_rate& sample_rate,
+    bladerf_bandwidth& bw,
     uint16_t& hop_type,
     double& on_time,
     double& off_time,
@@ -46,6 +47,9 @@ inline void read_hop_params(std::string param_filename,
 
         // sample_rate
         config["sample_rate"] >> sample_rate;
+
+        // tx filter bandwidth
+        config["bandwidth"] >> bw;
 
         // foreground: depthmap value, probablility, blur radius values
         ryml::NodeRef timing = config["timing"];

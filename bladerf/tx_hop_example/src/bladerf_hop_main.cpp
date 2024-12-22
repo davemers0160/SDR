@@ -83,7 +83,7 @@ int main(int argc, char** argv)
     bladerf_frequency start_freq = 1500000000;// 314300000;
     bladerf_frequency stop_freq = 1500000000;// 314300000;
     int64_t hop_step = 500000000;// 314300000;
-    bladerf_bandwidth tx_bw = 20000000;
+    bladerf_bandwidth tx_bw = 200000;
     bladerf_gain tx1_gain = 60000;
 
     double on_time;
@@ -119,7 +119,7 @@ int main(int argc, char** argv)
 
     // read in the parameters
     std::string param_filename = argv[1];
-    read_hop_params(param_filename, start_freq, stop_freq, hop_step, sample_rate, hop_type, on_time, off_time, tx1_gain, iq_filename);
+    read_hop_params(param_filename, start_freq, stop_freq, hop_step, sample_rate, tx_bw, hop_type, on_time, off_time, tx1_gain, iq_filename);
 
     std::vector<bladerf_frequency> hop_sequence;
     generate_range(start_freq, stop_freq, (double)hop_step, hop_sequence);
