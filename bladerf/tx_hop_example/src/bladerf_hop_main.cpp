@@ -19,6 +19,7 @@
 #include <complex>
 #include <csignal>
 #include <chrono>
+#include <thread>
 
 // bladeRF includes
 #include <libbladeRF.h>
@@ -195,12 +196,12 @@ int main(int argc, char** argv)
                 std::cin.ignore();
             }
 
-            blade_status = bladerf_get_quick_tune(dev, tx, &hops[idx].qt);
-            if (blade_status != 0)
-            {
-                std::cout << "Failed to get quick tune: " << hops[idx].f << "Hz.   error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-                std::cin.ignore();
-            }
+            //blade_status = bladerf_get_quick_tune(dev, tx, &hops[idx].qt);
+            //if (blade_status != 0)
+            //{
+            //    std::cout << "Failed to get quick tune: " << hops[idx].f << "Hz.   error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+            //    std::cin.ignore();
+            //}
 
             std::cout << idx << ": " << hops[idx].f << ", nios_profile: " << hops[idx].qt.nios_profile << ", rffe_profile: " << (uint16_t)hops[idx].qt.rffe_profile << std::endl;
 
@@ -289,11 +290,14 @@ int main(int argc, char** argv)
                 //std::cout << "hop_index: " << hop_index << std::endl;
   
                 //printf("nios_profile = %u, rffe_profile = %u\n",freqs[hopseq[f]].qt.nios_profile, freqs[hopseq[f]].qt.rffe_profile);
-                blade_status = bladerf_sync_tx(dev, (int16_t*)samples.data(), num_samples, NULL, timeout_ms);
-                if (blade_status != 0)
-                {
-                    std::cout << "Unable to send the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-                }
+                //for(idx=0; idx<2;++idx)
+                //{
+                    blade_status = bladerf_sync_tx(dev, (int16_t*)samples.data(), num_samples, NULL, timeout_ms);
+                    if (blade_status != 0)
+                    {
+                        std::cout << "Unable to send the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                    }
+                //}
 
                 switch (hop_type)
                 {
@@ -333,8 +337,10 @@ int main(int argc, char** argv)
 
             //do
             //{
-            //    sleep_ms(1);
-            //    stop_time = std::chrono::high_resolution_clock::now();
+            //sleep_ms(1);
+                //std::this_thread::sleep_for(std::chrono::microseconds(200));
+                //std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                //    stop_time = std::chrono::high_resolution_clock::now();
             //    duration = std::chrono::duration_cast<chrono::nanoseconds>(stop_time - start_time).count();
 
             //} while (duration < off_time);
@@ -365,7 +371,7 @@ int main(int argc, char** argv)
     bladerf_close(dev);
 
     std::cout << "Press Enter to close..." << std::endl;
-    std::cin.ignore();    
+    //std::cin.ignore();    
     
     return 0;
     
