@@ -427,6 +427,8 @@ int main(int argc, char** argv)
             std::cerr << "Unable to catch SIGINT signals" << std::endl;
         }
 
+        std::cout << "Sending signals..." << std::endl << std::endl;
+
         while (is_running)
         {
             //std::cout << "Sending signal #" << idx << std::endl;
