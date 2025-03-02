@@ -67,7 +67,7 @@ int select_bladerf(int num_devices, struct bladerf_devinfo* device_list)
 
 }   // end of get_device_list
 
-// ----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 void bladerf_status(int status)
 {
     if (status != 0)
@@ -79,7 +79,7 @@ void bladerf_status(int status)
 
 }
 
-// ----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 void read_bladerf_params(std::string param_filename,
     bladerf_frequency& rx_freq,
     bladerf_sample_rate& fs,
@@ -169,5 +169,100 @@ void read_bladerf_params(std::string param_filename,
     }
 
 }   // end of read_bladerf_params
+
+//-----------------------------------------------------------------------------
+inline int32_t switch_blade_mode(struct bladerf* dev, uint32_t mode, bladerf_channel ch, bladerf_frequency &freq, bladerf_gain &gain)
+{
+    int32_t blade_status = 0;
+    switch (mode)
+    {
+    // RX mode
+    case 0:
+        // enable the TX channel RF frontend
+        blade_status = bladerf_enable_module(dev, BLADERF_TX, false);
+        blade_status |= bladerf_enable_module(dev, BLADERF_RX, true);
+        if (blade_status != 0)
+        {
+            std::cout << "Error enabling RX - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+        }
+
+        // the gain must be set after the module has been enabled
+        //blade_status = bladerf_set_gain_mode(dev, tx, BLADERF_GAIN_MANUAL);
+        blade_status = bladerf_set_gain(dev, ch, gain);
+        blade_status |= bladerf_get_gain(dev, ch, &gain);
+        if (blade_status != 0)
+        {
+            std::cout << "Error setting RX gain - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+        }
+        blade_status = bladerf_set_frequency(dev, ch, freq);
+
+        break;
+
+    // TX mode
+    case 1:
+
+        // enable the TX channel RF frontend
+        blade_status = bladerf_enable_module(dev, BLADERF_RX, false);
+        blade_status |= bladerf_enable_module(dev, BLADERF_TX, true);
+        if (blade_status != 0)
+        {
+            std::cout << "Error enabling TX - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+        }
+
+        // the gain must be set after the module has been enabled
+        //blade_status = bladerf_set_gain_mode(dev, tx, BLADERF_GAIN_MANUAL);
+        blade_status = bladerf_set_gain(dev, ch, gain);
+        blade_status = bladerf_get_gain(dev, ch, &gain);
+        if (blade_status != 0)
+        {
+            std::cout << "Error setting TX gain - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+        }
+        blade_status = bladerf_set_frequency(dev, ch, freq);
+
+        break;
+    }
+
+    return blade_status;
+
+}   // end of switch_blade_mode
+
+//-----------------------------------------------------------------------------
+// assumes that the blade channel has been sync'd first
+inline int32_t config_blade_channel(struct bladerf* dev, bladerf_channel ch, bladerf_frequency freq, bladerf_sample_rate sample_rate, bladerf_bandwidth bw, bladerf_gain gain)
+{
+    int32_t blade_status;
+
+    // set samplerate
+    blade_status = bladerf_set_sample_rate(dev, ch, sample_rate, &sample_rate);
+    // set bandwidth
+    blade_status |= bladerf_set_bandwidth(dev, ch, bw, &bw);
+    // set frequency
+    blade_status |= bladerf_set_frequency(dev, ch, freq);
+    if (blade_status != 0)
+    {
+        std::cout << "Error setting channel samplerrate, bandwidth or frequency: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+    }
+
+    // set gain
+    blade_status = bladerf_enable_module(dev, ch, true);
+    if (blade_status != 0)
+    {
+        std::cout << "Error enabling channel: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+    }
+    blade_status |= bladerf_set_gain(dev, ch, gain);
+    blade_status |= bladerf_get_gain(dev, ch, &gain);
+    blade_status |= bladerf_enable_module(dev, ch, false);
+
+    // print out the specifics
+    std::cout << std::endl << "------------------------------------------------------------------" << std::endl;
+    std::cout << "Channel Settings:" << std::endl;
+    std::cout << "  Frequency:   " << freq << std::endl;
+    std::cout << "  Sample Rate: " << sample_rate << std::endl;
+    std::cout << "  Bandwidth:   " << bw << std::endl;
+    std::cout << "  Gain:        " << gain << std::endl;
+    std::cout << std::endl;
+
+    return blade_status;
+}   // end of config_blade_channel
 
 #endif  // _BLADERF_COMMON_H_
