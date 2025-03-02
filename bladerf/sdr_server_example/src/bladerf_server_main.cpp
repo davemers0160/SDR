@@ -136,7 +136,7 @@ int main(int argc, char** argv)
     double on_time;
     double off_time;
     uint64_t num_samples;
-    uint32_t hop_index;
+    uint32_t hop_index = 0;
     uint16_t hop_type;
 
     std::vector<std::complex<int16_t>> samples;
