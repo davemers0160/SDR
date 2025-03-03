@@ -359,12 +359,12 @@ int main(int argc, char** argv)
                 if (blade_mode == 0)
                 {
                     tuned_freq = rx_hop_sequence[hop_index];
-                    blade_status = switch_blade_mode(dev, blade_mode, rx, tuned_freq, rx_gain);
+                    blade_status = switch_blade_mode(dev, blade_mode, rx);
                 }
                 else
                 {
                     tuned_freq = tx_hop_sequence[hop_index];
-                    blade_status = switch_blade_mode(dev, blade_mode, tx, tuned_freq, tx_gain);
+                    blade_status = switch_blade_mode(dev, blade_mode, tx);
                 }
                 msg_result.resize(2);
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::SELECT_MODE);
@@ -395,7 +395,9 @@ int main(int argc, char** argv)
 
             case static_cast<uint32_t>(BLADE_MSG_ID::ENABLE_TX):
                 tx_enable = (bool)command[1];
+                rx_enable = false;
                 blade_status |= bladerf_enable_module(dev, tx, tx_enable);
+                blade_status |= bladerf_enable_module(dev, rx, rx_enable);
                 if (blade_status != 0)
                 {
                     std::cout << "Error enabling TX: " << std::string(bladerf_strerror(blade_status)) << std::endl;

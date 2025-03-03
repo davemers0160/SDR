@@ -132,6 +132,8 @@ int main(int argc, char** argv)
     }
 
     param_filename = argv[1];
+
+    std::cout << "parsing yaml file: " << param_filename << std::endl;
     parse_input(param_filename, rx_freq_range, sample_rate, duration, rx1_gain, save_location);
 
     num_samples = (uint64_t)(sample_rate * duration);

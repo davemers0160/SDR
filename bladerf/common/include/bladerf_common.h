@@ -171,7 +171,7 @@ void read_bladerf_params(std::string param_filename,
 }   // end of read_bladerf_params
 
 //-----------------------------------------------------------------------------
-inline int32_t switch_blade_mode(struct bladerf* dev, uint32_t mode, bladerf_channel ch, bladerf_frequency &freq, bladerf_gain &gain)
+inline int32_t switch_blade_mode(struct bladerf* dev, uint32_t mode, bladerf_channel ch)
 {
     int32_t blade_status = 0;
     switch (mode)
@@ -185,17 +185,6 @@ inline int32_t switch_blade_mode(struct bladerf* dev, uint32_t mode, bladerf_cha
         {
             std::cout << "Error enabling RX - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
         }
-
-        // the gain must be set after the module has been enabled
-        //blade_status = bladerf_set_gain_mode(dev, tx, BLADERF_GAIN_MANUAL);
-        blade_status = bladerf_set_gain(dev, ch, gain);
-        blade_status |= bladerf_get_gain(dev, ch, &gain);
-        if (blade_status != 0)
-        {
-            std::cout << "Error setting RX gain - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-        }
-        blade_status = bladerf_set_frequency(dev, ch, freq);
-
         break;
 
     // TX mode
@@ -208,17 +197,6 @@ inline int32_t switch_blade_mode(struct bladerf* dev, uint32_t mode, bladerf_cha
         {
             std::cout << "Error enabling TX - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
         }
-
-        // the gain must be set after the module has been enabled
-        //blade_status = bladerf_set_gain_mode(dev, tx, BLADERF_GAIN_MANUAL);
-        blade_status = bladerf_set_gain(dev, ch, gain);
-        blade_status = bladerf_get_gain(dev, ch, &gain);
-        if (blade_status != 0)
-        {
-            std::cout << "Error setting TX gain - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-        }
-        blade_status = bladerf_set_frequency(dev, ch, freq);
-
         break;
     }
 
