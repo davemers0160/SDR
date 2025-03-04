@@ -21,23 +21,24 @@ class bladerf_sdr_client:
     #------------------------------------------------------------------------------
     # class SB_MESSAGE_ID(IntEnum):
     # standard request for the server version
-    REQUEST_VERSION     = (BLADERF_SERVER_ID | 0x00000000)
+    GET_VERSION             = (BLADERF_SERVER_ID | 0x00000000)
+    SELECT_MODE             = (BLADERF_SERVER_ID | 0x00000001)
+    
+    CONFIG_RX               = (BLADERF_SERVER_ID | 0x00000100)
+    ENABLE_RX               = (BLADERF_SERVER_ID | 0x00000101)
+    SET_RX_FREQ             = (BLADERF_SERVER_ID | 0x00000102)
+    SET_RX_GAIN             = (BLADERF_SERVER_ID | 0x00000103)
+    #SET_RX_SAMPLERATE       = (BLADERF_SERVER_ID | 0x00000104)
+    SET_RX_BANDWIDTH        = (BLADERF_SERVER_ID | 0x00000105)
 
-    SET_RX_FREQ         = (BLADERF_SERVER_ID | 0x00000101)
-    SET_RX_GAIN         = (BLADERF_SERVER_ID | 0x00000102)
-    SET_RX_SAMPLERATE   = (BLADERF_SERVER_ID | 0x00000103)
-    SET_RX_BANDWIDTH    = (BLADERF_SERVER_ID | 0x00000104)
-    CONFIG_RX           = (BLADERF_SERVER_ID | 0x00000105)
-    RECEIVE_SAMPLES     = (BLADERF_SERVER_ID | 0x00000106)
+    CONFIG_TX               = (BLADERF_SERVER_ID | 0x00000200)
+    ENABLE_TX               = (BLADERF_SERVER_ID | 0x00000201)
+    SET_TX_FREQ             = (BLADERF_SERVER_ID | 0x00000202)
+    SET_TX_GAIN             = (BLADERF_SERVER_ID | 0x00000203)
+    #SET_TX_SAMPLERATE       = (BLADERF_SERVER_ID | 0x00000204)
+    SET_TX_BANDWIDTH        = (BLADERF_SERVER_ID | 0x00000205)
 
-    SET_TX_FREQ         = (BLADERF_SERVER_ID | 0x00000201)
-    SET_TX_GAIN         = (BLADERF_SERVER_ID | 0x00000202)
-    SET_TX_SAMPLERATE   = (BLADERF_SERVER_ID | 0x00000203)
-    SET_TX_BANDWIDTH    = (BLADERF_SERVER_ID | 0x00000204)
-    CONFIG_TX           = (BLADERF_SERVER_ID | 0x00000205)
-    TRANSMIT_SAMPLES    = (BLADERF_SERVER_ID | 0x00000206)
-
-    UNKNOWN             = 0xFFFFFFFF
+    UNKNOWN                 = 0xFFFFFFFF
 
     #------------------------------------------------------------------------------
     def __init__(self, ip_address: str, port: str):
@@ -73,9 +74,9 @@ class bladerf_sdr_client:
     #     return self.parse_input_data(data)
 
     #------------------------------------------------------------------------------
-    def get_server_version(self):
+    def get_version(self):
         # create the command message and convert to bytearray
-        command = np.uint32(self.REQUEST_VERSION)
+        command = np.uint32(self.GET_VERSION)
         command_msg = struct.pack("<I", command)
 
         server_version = np.array([0])
@@ -86,7 +87,7 @@ class bladerf_sdr_client:
             response = self.socket.recv()
             response = np.array(struct.unpack("<4I", response)).astype(np.uint32)
 
-            if (response[0] == command):
+            if (response[0] == np.uint32(self.GET_VERSION)):
                 server_version = response[1:]
 
         except Exception as e:
@@ -94,6 +95,86 @@ class bladerf_sdr_client:
 
         finally:
             return server_version
+          
+    #------------------------------------------------------------------------------
+    def select_mode(self, mode: np.uint32):
+        command = np.array([self.SELECT_MODE, mode]).astype(np.uint32)
+        cmd_fs = "<" + str(command.size) + "I"       
+        command_msg = struct.pack(cmd_fs, *command)
+
+        result = -1
+        try:
+            # send the command message
+            self.socket.send(command_msg)
+
+            response = self.socket.recv()
+            res_fs = "<" + str(len(response)//4) + "I"
+            response = np.array(struct.unpack(res_fs, response)).astype(np.uint32)
+
+            if (response[0] == np.uint32(self.SELECT_MODE)):
+                result = response[1];
+
+        except Exception as e:
+            print(f"An error occurred sending/receiving the request: {e}")
+
+        finally:
+            return result       
+    
+    #------------------------------------------------------------------------------
+    def config_tx(self, start_frequency: np.uint64, stop_frequency: np.uint64, frequency_step: np.int32, sample_rate: np.uint32, bw: np.uint32, gain: np.int32):
+        
+        stf_32M = (start_frequency >> 32).astype(np.uint32)
+        stf_32L = (start_frequency & 0x00FFFFFFFF).astype(np.uint32)
+        spf_32M = (stop_frequency >> 32).astype(np.uint32)
+        spf_32L = (stop_frequency & 0x00FFFFFFFF).astype(np.uint32)        
+        
+        # create the command message and convert to bytearray
+        command = np.array([self.CONFIG_TX, stf_32M, stf_32L, spf_32M, spf_32L, frequency_step, sample_rate, bw, gain]).astype(np.uint32)
+        cmd_fs = "<" + str(command.size) + "I"       
+        command_msg = struct.pack(cmd_fs, *command)
+        
+        result = -1
+        try:
+            # send the command message
+            self.socket.send(command_msg)
+
+            response = self.socket.recv()
+            res_fs = "<" + str(len(response)//4) + "I"
+            response = np.array(struct.unpack(res_fs, response)).astype(np.uint32)
+
+            if (response[0] == np.uint32(self.CONFIG_TX)):
+                result = response[1];
+
+        except Exception as e:
+            print(f"An error occurred sending/receiving the request: {e}")
+
+        finally:
+            return result       
+
+    #------------------------------------------------------------------------------
+    def enable_tx(self, status: bool):
+        command = np.array([self.ENABLE_TX, int(status)]).astype(np.uint32)
+        cmd_fs = "<" + str(command.size) + "I"       
+        command_msg = struct.pack(cmd_fs, *command)
+
+        result = -1
+        try:
+            # send the command message
+            self.socket.send(command_msg)
+
+            response = self.socket.recv()
+            res_fs = "<" + str(len(response)//4) + "I"
+            response = np.array(struct.unpack(res_fs, response)).astype(np.uint32)
+
+            if (response[0] == np.uint32(self.ENABLE_TX)):
+                result = response[1];
+
+        except Exception as e:
+            print(f"An error occurred sending/receiving the request: {e}")
+
+        finally:
+            return result   
+
 
     #------------------------------------------------------------------------------
     def set_iq_savepath(self, file_path: str):
@@ -149,60 +230,6 @@ class bladerf_sdr_client:
 
         finally:
             return result
-
-    #------------------------------------------------------------------------------
-    def generate_iq(self, index):
-        # create the command message and convert to bytearray
-        command = np.array([self.GENERATE_IQ, index]).astype(np.uint32)
-        command_msg = struct.pack("<2I", *command)
-
-        result = -1
-        iq_filename = ""
-        try:
-            # send the command message
-            self.socket.send(command_msg)
-
-            response = self.socket.recv()
-            res_fs = "<" + str(len(response)//4) + "I"
-            response = np.array(struct.unpack(res_fs, response)).astype(np.uint32)
-
-            if (response[0] == np.uint32(self.GENERATE_IQ)):
-                result = response[1]
-                if result == 1:
-                    iq_filename = ''.join([chr(x) for x in response[2:]])
-
-        except Exception as e:
-            print(f"An error occurred sending/receiving the request: {e}")
-
-        finally:
-            return result, iq_filename
-
-    #------------------------------------------------------------------------------
-    def generate_n_iq(self, index, num):
-        # create the command message and convert to bytearray
-        command = np.array([self.GENERATE_N_IQ, index, num]).astype(np.uint32)
-        command_msg = struct.pack("<3I", *command)
-
-        result = -1
-        iq_filename = ""
-        try:
-            # send the command message
-            self.socket.send(command_msg)
-
-            response = self.socket.recv()
-            res_fs = "<" + str(len(response)//4) + "I"
-            response = np.array(struct.unpack(res_fs, response)).astype(np.uint32)
-
-            if (response[0] == np.uint32(self.GENERATE_N_IQ)):
-                result = response[1]
-                if result == 1:
-                    iq_filename = ''.join([chr(x) for x in response[2:]])
-
-        except Exception as e:
-            print(f"An error occurred sending/receiving the request: {e}")
-
-        finally:
-            return result, iq_filename
 
     #------------------------------------------------------------------------------
     def generate_iq_with_data(self, data: npt.NDArray[np.int16], index):
