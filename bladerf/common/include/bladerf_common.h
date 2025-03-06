@@ -243,4 +243,31 @@ inline int32_t config_blade_channel(struct bladerf* dev, bladerf_channel ch, bla
     return blade_status;
 }   // end of config_blade_channel
 
+//-----------------------------------------------------------------------------
+inline void enable_channel(struct bladerf* dev, bladerf_channel ch, bool desired_status, bool &current_status)
+{
+    int32_t blade_status = 0;
+    bool result = false;
+
+    // case 1: changing from false to true or true to false
+    if (desired_status != current_status)
+    {
+        blade_status |= bladerf_enable_module(dev, ch, desired_status);
+        current_status = desired_status;
+    }
+    // case 2: changing from true to false
+    else if (desired_status == current_status)
+    {
+        return;
+    }
+
+    if (blade_status != 0)
+    {
+        std::cout << "Error enabling channel: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+    }
+
+}   // end of enable_channel
+
+
+
 #endif  // _BLADERF_COMMON_H_
