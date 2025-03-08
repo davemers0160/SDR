@@ -204,78 +204,9 @@ class bladerf_sdr_client:
             return result
 
 
-    #------------------------------------------------------------------------------
-    def create_signal_builder(self, sb: signal_builder):
-        # create the command message and convert to bytearray
-        command = np.uint32(self.CREATE_SIGNAL)
-        command_msg = struct.pack("<I", command)
 
-        sb_data = bytearray()
-        sb_data = sb.serialize(sb_data)
 
-        result = -1
-        try:
-            # send the command message and the data as a multipart message
-            self.socket.send(command_msg, zmq.SNDMORE)
-            self.socket.send(sb_data)
 
-            response = self.socket.recv()
-            response = np.array(struct.unpack("<2I", response)).astype(np.uint32)
-
-            if (response[0] == command):
-                result = response[1].astype(np.int32)
-
-        except Exception as e:
-            print(f"An error occurred sending/receiving the request: {e}")
-
-        finally:
-            return result
-
-    #------------------------------------------------------------------------------
-    def generate_iq_with_data(self, data: npt.NDArray[np.int16], index):
-        # create the command message and convert to bytearray
-        command = np.array([self.GENERATE_IQ_WITH_DATA, index]).astype(np.uint32)
-        command_msg = struct.pack("<2I", *command)
-
-        # start by serializing the number of data messages
-        num_messages = data.shape[0]
-        data_msg = bytearray()
-        tmp = struct.pack(">I", num_messages)
-        data_msg.extend(tmp)
-
-        result = -1
-        iq_filename = ""
-
-        for idx in range(num_messages):
-            # get the number of elements
-            data_size = data[idx].size
-            tmp = struct.pack(">Q", data_size)
-            data_msg.extend(tmp)
-
-            # pack the data into the byte array
-            nd_fs = ">" + str(data_size) + "h"
-            tmp = struct.pack(nd_fs, *data[idx])
-            data_msg.extend(tmp)
-
-        try:
-            # send the command message and the data as a multipart message
-            self.socket.send(command_msg, zmq.SNDMORE)
-            self.socket.send(data_msg)
-
-            response = self.socket.recv()
-            res_fs = "<" + str(len(response)//4) + "I"
-            response = np.array(struct.unpack(res_fs, response)).astype(np.uint32)
-
-            if (response[0] == np.uint32(self.GENERATE_IQ_WITH_DATA)):
-                result = response[1]
-                if result == 1:
-                    iq_filename = ''.join([chr(x) for x in response[2:]])
-
-        except Exception as e:
-            print(f"An error occurred sending/receiving the request: {e}")
-
-        finally:
-            return result, iq_filename
 
     #------------------------------------------------------------------------------
     def close(self):

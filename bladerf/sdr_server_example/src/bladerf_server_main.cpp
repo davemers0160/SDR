@@ -20,6 +20,9 @@
 #include <csignal>
 #include <chrono>
 #include <thread>
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
 
 // ZMQ includes
 #include <zmq.hpp>
@@ -47,9 +50,18 @@
 //const double pi = 3.14159265358979323846;
 //const double pi2 = 2 * 3.14159265358979323846;
 
-bool is_running = false;
-bool transmit = false;
-bool recieve = false;
+atomic<bool> is_running = false;
+
+atomic<bool> transmit_thread_running = false;
+atomic<bool> transmit = false;
+std::mutex tx_mutex;
+std::condition_variable tx_cv;
+
+atomic<bool> recieve_thread_running = false;
+atomic<bool> recieve = false;
+std::mutex rx_mutex;
+std::condition_variable rx_cv;
+
 uint32_t blade_timeout_ms = 10000;
 
 
@@ -60,6 +72,8 @@ void sig_handler(int signo)
     {
         fprintf(stderr, "received SIGINT\n");
         is_running = false;
+        transmit_thread_running = false;
+        recieve_thread_running = false;
         transmit = false;
         recieve = false;
     }
@@ -68,17 +82,32 @@ void sig_handler(int signo)
 //-----------------------------------------------------------------------------
 inline void transmit_thread(struct bladerf* dev, std::vector<std::complex<int16_t>>& samples)
 {
-    uint32_t num_samples = samples.size();
+    uint32_t num_samples;
     int32_t blade_status;
     
-    while(transmit == true)
+    // main thread loop
+    while (transmit_thread_running == true)
     {
-        blade_status = bladerf_sync_tx(dev, (int16_t*)samples.data(), num_samples, NULL, blade_timeout_ms);
+        num_samples = samples.size();
 
-        if (blade_status != 0)
-        {
-            std::cout << "Unable to send the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+        // main transmit loop
+        while (transmit == true)
+        {        
+            blade_status = bladerf_sync_tx(dev, (int16_t*)samples.data(), num_samples, NULL, blade_timeout_ms);
+
+            if (blade_status != 0)
+            {
+                std::cout << "Unable to send the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+            }
+
         }
+
+        // this wait will put the thread to sleep until transmit is true
+        {
+            std::unique_lock<std::mutex> lock(tx_mutex);
+            tx_cv.wait(lock, [] { return (transmit == false); });
+        }
+
     }
     
 }   // end of transmit_thread
@@ -116,7 +145,7 @@ int main(int argc, char** argv)
     bladerf_frequency tx_start_freq = 1500000000;
     bladerf_frequency tx_stop_freq = 1500000000;
     int64_t tx_step = 30000000;
-    bool tx_enable = true;
+    //bool tx_enable = true;
     std::vector<hop_params> tx_hops;
     std::vector<bladerf_frequency> tx_hop_sequence;
     std::thread tx_thread;
@@ -129,9 +158,10 @@ int main(int argc, char** argv)
     bladerf_frequency rx_start_freq = 1500000000;
     bladerf_frequency rx_stop_freq = 1500000000;
     int64_t rx_step = 30000000;
-    bool rx_enable = false;
+    //bool rx_enable = false;
     std::vector<hop_params> rx_hops;
     std::vector<bladerf_frequency> rx_hop_sequence;
+    std::thread rx_thread;
 
     bladerf_frequency tuned_freq;
 
@@ -273,10 +303,32 @@ int main(int argc, char** argv)
         // config the rx side
         blade_status = config_blade_channel(dev, rx, rx_hop_sequence[0], rx_sample_rate, rx_bw, rx_gain);
 
-        if(blade_mode == 0)
-            blade_status = bladerf_enable_module(dev, rx, rx_enable);
+        // recieve mode
+        if (blade_mode == 0)
+        {
+            // stop transmitting
+            transmit = false;
+
+            tuned_freq = rx_hop_sequence[hop_index];
+            blade_status = switch_blade_mode(dev, blade_mode, rx);
+            blade_status |= bladerf_set_frequency(dev, rx, tuned_freq);
+
+            // start the rx thread
+            recieve = true;
+        }
+        // transmit mode
         else
-            blade_status = bladerf_enable_module(dev, tx, tx_enable);
+        {
+            // stop recieving
+            recieve = false;
+
+            tuned_freq = tx_hop_sequence[hop_index];
+            blade_status = switch_blade_mode(dev, blade_mode, tx);
+            blade_status |= bladerf_set_frequency(dev, tx, tuned_freq);
+
+            // start the tx thread
+            transmit = true;
+        }
 
         if (blade_status != 0)
         {
@@ -304,13 +356,16 @@ int main(int argc, char** argv)
 
         is_running = true;
         
+        // set the thread conditions before initializing the threads
+        transmit_thread_running = true;
+        recieve_thread_running = true;
 
         // start the tx thread
         tx_thread  = std::thread(transmit_thread, dev, std::ref(samples));
 
         //std::cout << std::endl << "Sending signals..." << std::endl << std::endl;
 
-
+        //-----------------------------------------------------------------------------
         // main loop
         while (is_running)
         {
@@ -319,7 +374,6 @@ int main(int argc, char** argv)
             //num_messages = zmq::recv_multipart(sb_socket, std::back_inserter(command_messages), zmq::recv_flags::dontwait);
             num_messages = bladerf_socket.recv(command_messages, zmq::recv_flags::dontwait);
             
-
             // check to see if any messages have arrived
             if (num_messages.has_value() == false)
             {
@@ -359,29 +413,32 @@ int main(int argc, char** argv)
 
             case static_cast<uint32_t>(BLADE_MSG_ID::SELECT_MODE):
                 blade_mode = command[1];
+
+                // recieve mode
                 if (blade_mode == 0)
                 {
                     // stop transmitting
                     transmit = false;
-                    tx_thread.join();
 
                     tuned_freq = rx_hop_sequence[hop_index];
                     blade_status = switch_blade_mode(dev, blade_mode, rx);
                     blade_status |= bladerf_set_frequency(dev, rx, tuned_freq);
 
+                    // start the rx thread
                     recieve = true;
                 }
+                // transmit mode
                 else
                 {
                     // stop recieving
                     recieve = false;
+
                     tuned_freq = tx_hop_sequence[hop_index];
                     blade_status = switch_blade_mode(dev, blade_mode, tx);
                     blade_status |= bladerf_set_frequency(dev, tx, tuned_freq);
 
                     // start the tx thread
                     transmit = true;
-                    tx_thread = std::thread(transmit_thread, dev, std::ref(samples));
                 }
                 msg_result.resize(2);
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::SELECT_MODE);
@@ -411,45 +468,27 @@ int main(int argc, char** argv)
                 break;
 
             case static_cast<uint32_t>(BLADE_MSG_ID::ENABLE_TX):
-                // requires that rx be disables before Tx is enabled
+
+                recieve = false;
                 tmp_enable = (bool)command[1];
 
-                enable_channel(dev, tx, tmp_enable, tx_enable);
+                transmit = enable_channel(dev, tx, tmp_enable, transmit);
 
-                if (tx_enable == true && transmit == false)
-                {
-                    transmit = true;
-                    tx_thread = std::thread(transmit_thread, dev, std::ref(samples));
-                }
-                else if (tx_enable == false && transmit == true)
-                {
-                    transmit = false;
-                    tx_thread.join();
-                }
+                //if (tx_enable == true && transmit == false)
+                //{
+                //    transmit = true;
+                //}
+                //else if (tx_enable == false && transmit == true)
+                //{
+                //    transmit = false;
+                //}
 
                 msg_result.resize(2);
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::ENABLE_TX);
-                msg_result[1] = 1;
+                msg_result[1] = static_cast<uint32_t>(transmit);
                 break;
 
-            //case static_cast<uint32_t>(BLADE_MSG_ID::SET_TX_FREQ):
-            //    start_freq = ((uint64_t)command[1]) << 32 | command[2];
-            //    blade_status = bladerf_set_frequency(dev, tx, hops[hop_index].f);
-            //    msg_result.resize(2);
-            //    msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::SET_TX_FREQ);
-            //    msg_result[1] = blade_status;
-            //    break;
-            //           
-            //case static_cast<uint32_t>(BLADE_MSG_ID::TRANSMIT_SAMPLES):
-            //    if(command[1] == 0)
-            //        transmit = false;
-            //    else if(command[1] == 1)
-            //        transmit = true;
 
-            //    msg_result.resize(2);
-            //    msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::SET_TX_FREQ);
-            //    msg_result[1] = (uint32_t)transmit;
-            //    break;
 
             default:
                 msg_result.resize(1);
@@ -465,6 +504,8 @@ int main(int argc, char** argv)
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
 
+        transmit_thread_running = false;
+        recieve_thread_running = false;
         transmit = false;
         recieve = false;
         tx_thread.join();
