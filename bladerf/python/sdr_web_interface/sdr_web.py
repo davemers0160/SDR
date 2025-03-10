@@ -35,6 +35,7 @@ def hello_world():
 @app.route('/test2', methods=['GET', 'POST'])
 def index():
     iq_filename = None
+    tx_enable_state = False
 
     file_list = scan_directory_for_filetype("D:/data/RF", "sc16")
 
@@ -44,8 +45,16 @@ def index():
         if request.form["submit_button"] == "b1":
             text_data = request.form['text_input']
         elif request.form["submit_button"] == "b2":
-            text_data = request.form['text_input2']
-        elif request.form["submit_button"] == "b3":
+            # text_data = request.form['text_input2']
+
+            if request.form['value'] == "Enable TX":
+                # print("yes")
+                tx_enable_state = True
+            elif request.form['value'] == "Disable TX":
+                # print("no")
+                tx_enable_state = False
+
+        elif request.form["submit_button"] == "Config Tx":
             sr_str = request.form["sample_rate"]
             start_freq_str = request.form["start_freq"]
             stop_freq_str = request.form["stop_freq"]
@@ -74,7 +83,7 @@ def index():
         # return f"You entered: {text_data}"
 
     # return render_template('index.html')  # Ensure you have an index.html file
-    return render_template('index.html', options=file_list) #, selected_value=text_data)
+    return render_template('index.html', options=file_list, tx_enable_state=tx_enable_state) #, selected_value=text_data)
 
 
 # main driver function

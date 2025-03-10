@@ -1,5 +1,19 @@
 <!DOCTYPE html>
 <html>
+    <script>
+    function change_color()
+    {
+        var button = document.getElementById("myButton");
+        if (button.style.backgroundColor === "red")
+        {
+            button.style.backgroundColor = "green";
+        }
+        else
+        {
+            button.style.backgroundColor = "red";
+        }
+    }
+    </script>
 <head>
     <title>Flask Form Example</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
@@ -62,8 +76,14 @@
     <div class="enable_section">
         <form method="POST">
 
-            <input type="submit" name="submit_button" value="Enable TX">
-
+            {% if tx_enable_state %}
+                <!--<button type=submit class="btn btn-default" name="lamp" value="on">-->
+                <input type="submit" name="submit_button" value="Enable TX" style="background-color: green;">
+            {% else %}
+                <input type="submit" name="submit_button" value="Disable TX" style="background-color: red;">
+            {% endif %}
+            <!--<input type="submit" id="myButton" name="submit_button" value="Enable TX" style="background-color: red;" onclick="change_color()">-->
+            <!--<button id="myButton" style="background-color: lightblue;" onclick="changeColor()">Click me</button>-->
         </form>
     </div>
 
