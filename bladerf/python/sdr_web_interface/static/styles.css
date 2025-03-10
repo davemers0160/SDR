@@ -45,6 +45,16 @@ p {
     margin-right: 20px;    border-bottom: 2px solid #0056b3;
 }
 
+.submit_btn {
+    padding: 5px 15px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
 .enable_section {
     color: #ffffff;
     margin: 0 auto;
@@ -55,6 +65,16 @@ p {
     margin-top: 20px;
     margin-left: 20px;
     margin-right: 20px;    border-bottom: 2px solid #0056b3;
+}
+
+.enable_btn {
+    padding: 5px 15px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    border-radius: 5px;
+    cursor: pointer;
 }
 
 a {

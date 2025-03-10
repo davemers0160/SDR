@@ -41,18 +41,18 @@ def index():
 
     if request.method == 'POST':
 
-        # Process the text data here
-        if request.form["submit_button"] == "b1":
-            text_data = request.form['text_input']
-        elif request.form["submit_button"] == "b2":
-            # text_data = request.form['text_input2']
+        if request.form["submit_button"] == "on":
+            # print("yes")
+            tx_enable_state = False
+        elif request.form["submit_button"] == "off":
+            # print("no")
+            tx_enable_state = True
 
-            if request.form['value'] == "Enable TX":
-                # print("yes")
-                tx_enable_state = True
-            elif request.form['value'] == "Disable TX":
-                # print("no")
-                tx_enable_state = False
+        # Process the text data here
+        # if request.form["submit_button"] == "b1":
+        #     text_data = request.form['text_input']
+        # elif request.form["submit_button"] == "b2":
+        #     # text_data = request.form['text_input2']
 
         elif request.form["submit_button"] == "Config Tx":
             sr_str = request.form["sample_rate"]
