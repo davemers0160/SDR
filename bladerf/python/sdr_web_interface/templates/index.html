@@ -6,46 +6,66 @@
 
 </head>
 <body>
-    <h1>Enter Text</h1>
+    <h1>SDR Server Interface</h1>
 
-    <BR>
-    <form method="POST">
+    <div class="server_section">
+        <form method="POST">
+            <label for="text_input">SDR Server IP Address: </label>
+            <input type="text" id="sdr_server_ip" name="sdr_server_ip" value="localhost">
+            <BR><BR>
 
-        <label for="text_input">Enter Samplerate (MHz): </label>
-        <input type="text" id="sample_rate" name="sample_rate" value="20000000">
-        <BR><BR>
+            <label for="text_input">SDR Server Port: </label>
+            <input type="text" id="sdr_server_port" name="sdr_server_port" value="25252">
+        </form>
+    </div>
 
-        <label for="text_input">Enter Start (MHz): </label>
-        <input type="text" id="start_freq" name="start_freq" value="1600000000">
-        <BR><BR>
+    <div class="config_section">
+        <form method="POST">
 
-        <label for="text_input">Enter Stop (MHz): </label>
-        <input type="text" id="stop_freq" name="stop_freq" value="1600000000">
-        <BR><BR>
+            <label for="text_input">Samplerate (MHz): </label>
+            <input type="text" id="sample_rate" name="sample_rate" value="20000000">
+            <BR><BR>
 
-        <label for="text_input">Enter Step (MHz): </label>
-        <input type="text" id="freq_step" name="freq_step" value="2000000">
-        <BR><BR>
+            <label for="text_input">Start Frequency (MHz): </label>
+            <input type="text" id="start_freq" name="start_freq" value="1600000000">
+            <BR><BR>
 
-        <label for="text_input">Enter Gain: </label>
-        <input type="text" id="gain" name="gain" value="65">
-        <BR><BR>
+            <label for="text_input">Stop Frequency (MHz): </label>
+            <input type="text" id="stop_freq" name="stop_freq" value="1600000000">
+            <BR><BR>
 
-        <label for="text_input">Enter Bandwidth (MHz): </label>
-        <input type="text" id="bandwidth" name="bandwidth" value="5000000">
-        <BR><BR>
+            <label for="text_input">Frequency Step (MHz): </label>
+            <input type="text" id="freq_step" name="freq_step" value="2000000">
+            <BR><BR>
 
-        <label for="file_dropdown">Select IQ File: </label><BR>
-        <select name="file_dropdown" id="file_dropdown">
-            {% for option in options %}
-            <option value="{{ option }}" {% if option == selected_value %}selected{% endif %}>{{ option }}</option>
-            {% endfor %}
-        </select>
+            <label for="text_input">Gain: </label>
+            <input type="text" id="gain" name="gain" value="65">
+            <BR><BR>
 
-        <BR><BR>
-        <input type="submit" name="submit_button" value="Config">
+            <label for="text_input">Bandwidth (MHz): </label>
+            <input type="text" id="bandwidth" name="bandwidth" value="5000000">
+            <BR><BR>
 
-    </form>
+            <label for="file_dropdown">Select IQ File: </label><BR>
+            <select name="file_dropdown" id="file_dropdown">
+                {% for option in options %}
+                <option value="{{ option }}" {% if option == selected_value %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+            </select>
+
+            <BR><BR>
+            <input type="submit" name="submit_button" value="Config TX">
+
+        </form>
+    </div>
+
+    <div class="enable_section">
+        <form method="POST">
+
+            <input type="submit" name="submit_button" value="Enable TX">
+
+        </form>
+    </div>
 
 </body>
 </html>
