@@ -206,20 +206,24 @@ inline int32_t switch_blade_mode(struct bladerf* dev, uint32_t mode, bladerf_cha
 
 //-----------------------------------------------------------------------------
 // assumes that the blade channel has been sync'd first
-inline int32_t config_blade_channel(struct bladerf* dev, bladerf_channel ch, bladerf_frequency freq, bladerf_sample_rate sample_rate, bladerf_bandwidth bw, bladerf_gain gain)
+inline int32_t config_tx_channel(struct bladerf* dev, bladerf_frequency freq, bladerf_sample_rate sample_rate, bladerf_bandwidth bw, bladerf_gain gain)
 {
     int32_t blade_status;
+    bladerf_channel tx = BLADERF_CHANNEL_TX(0);
 
     // set samplerate
-    blade_status = bladerf_set_sample_rate(dev, ch, sample_rate, &sample_rate);
+    blade_status = bladerf_set_sample_rate(dev, tx, sample_rate, &sample_rate);
     // set bandwidth
-    blade_status |= bladerf_set_bandwidth(dev, ch, bw, &bw);
+    blade_status |= bladerf_set_bandwidth(dev, tx, bw, &bw);
+
     // set frequency
-    blade_status |= bladerf_set_frequency(dev, ch, freq);
+    blade_status |= bladerf_set_frequency(dev, tx, freq);
     if (blade_status != 0)
     {
         std::cout << "Error setting channel samplerrate, bandwidth or frequency: " << std::string(bladerf_strerror(blade_status)) << std::endl;
     }
+
+    blade_status = bladerf_sync_config(dev, BLADERF_TX_X1, BLADERF_FORMAT_SC16_Q11, num_buffers, buffer_size, num_transfers, blade_timeout_ms);
 
     // set gain
     blade_status = bladerf_enable_module(dev, ch, true);
@@ -232,7 +236,6 @@ inline int32_t config_blade_channel(struct bladerf* dev, bladerf_channel ch, bla
     blade_status |= bladerf_enable_module(dev, ch, false);
 
     // print out the specifics
-    std::cout << std::endl << "------------------------------------------------------------------" << std::endl;
     std::cout << "Channel Settings:" << std::endl;
     std::cout << "  Frequency:   " << freq << std::endl;
     std::cout << "  Sample Rate: " << sample_rate << std::endl;

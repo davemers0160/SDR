@@ -16,7 +16,7 @@ import zmq
 class bladerf_sdr_client:
 
     # ID of the server
-    BLADERF_SERVER_ID = 0xB0000000
+    BLADERF_SERVER_ID       = 0xB0000000
     
     #------------------------------------------------------------------------------
     # class SB_MESSAGE_ID(IntEnum):
@@ -37,6 +37,8 @@ class bladerf_sdr_client:
     SET_TX_GAIN             = (BLADERF_SERVER_ID | 0x00000203)
     #SET_TX_SAMPLERATE       = (BLADERF_SERVER_ID | 0x00000204)
     SET_TX_BANDWIDTH        = (BLADERF_SERVER_ID | 0x00000205)
+
+    LOAD_IQ_FILE            = (BLADERF_SERVER_ID | 0x00000400)
 
     UNKNOWN                 = 0xFFFFFFFF
 

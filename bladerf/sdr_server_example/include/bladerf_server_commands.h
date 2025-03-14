@@ -56,6 +56,8 @@ enum class BLADE_MSG_ID : uint32_t
     //SET_TX_SAMPLERATE       = (BLADERF_SERVER_ID | 0x00000204),
     SET_TX_BANDWIDTH        = (BLADERF_SERVER_ID | 0x00000205),
     
+    LOAD_IQ_FILE            = (BLADERF_SERVER_ID | 0x00000400),
+
     UNKNOWN                 = 0xFFFFFFFF
 };
 
