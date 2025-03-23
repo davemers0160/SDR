@@ -16,7 +16,7 @@ import zmq
 class bladerf_sdr_client:
 
     # ID of the server
-    BLADERF_SERVER_ID = 0xB0000000
+    BLADERF_SERVER_ID       = 0xB0000000
     
     #------------------------------------------------------------------------------
     # class SB_MESSAGE_ID(IntEnum):
