@@ -58,8 +58,6 @@ enum class BLADE_MSG_ID : uint32_t
 
     LOAD_IQ_FILE            = (BLADERF_SERVER_ID | 0x00000300),
     
-    LOAD_IQ_FILE            = (BLADERF_SERVER_ID | 0x00000400),
-
     UNKNOWN                 = 0xFFFFFFFF
 };
 
