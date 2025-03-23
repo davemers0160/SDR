@@ -80,7 +80,7 @@ void sig_handler(int signo)
 }   // end of sig_handler
 
 //-----------------------------------------------------------------------------
-void transmit_thread(struct bladerf* dev, std::vector<std::complex<int16_t>>& samples)
+inline void transmit_thread(struct bladerf* dev, std::vector<std::complex<int16_t>>& samples)
 {
     uint32_t num_samples;
     int32_t blade_status;
@@ -292,35 +292,30 @@ int main(int argc, char** argv)
 
         //-----------------------------------------------------------------------------
         // configure the sync to receive/transmit data
-        //blade_status = bladerf_sync_config(dev, BLADERF_TX_X1, BLADERF_FORMAT_SC16_Q11, num_buffers, buffer_size, num_transfers, blade_timeout_ms);
-        //if (blade_status != 0)
-        //{
-        //    std::cout << "Failed to configure TX sync interface - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-        //}
-        //
-        //blade_status = bladerf_sync_config(dev, BLADERF_RX_X1, BLADERF_FORMAT_SC16_Q11, num_buffers, buffer_size, num_transfers, blade_timeout_ms);
-        //if (blade_status != 0)
-        //{
-        //    std::cout << "Failed to configure RX sync interface - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-        //}
+        blade_status = bladerf_sync_config(dev, BLADERF_TX_X1, BLADERF_FORMAT_SC16_Q11, num_buffers, buffer_size, num_transfers, blade_timeout_ms);
+        if (blade_status != 0)
+        {
+            std::cout << "Failed to configure TX sync interface - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+        }
+        
+        blade_status = bladerf_sync_config(dev, BLADERF_RX_X1, BLADERF_FORMAT_SC16_Q11, num_buffers, buffer_size, num_transfers, blade_timeout_ms);
+        if (blade_status != 0)
+        {
+            std::cout << "Failed to configure RX sync interface - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+        }
 
-        //blade_status = bladerf_set_gain_mode(dev, rx, BLADERF_GAIN_MGC);
+        blade_status = bladerf_set_gain_mode(dev, rx, BLADERF_GAIN_MGC);
 
-        //// config the tx side
-        //std::cout << "------------------------------------------------------------------" << std::endl;
-        //std::cout << "Configuring TX: " << std::endl;
-        blade_status = config_blade_channel(dev, tx_hop_sequence[0], tx_sample_rate, tx_bw, tx_gain);
-        //
-        //// config the rx side
-        //std::cout << "------------------------------------------------------------------" << std::endl;
-        //std::cout << "Configuring RX: " << std::endl;
-        //blade_status = config_blade_channel(dev, rx, rx_hop_sequence[0], rx_sample_rate, rx_bw, rx_gain);
+        // config the tx side
+        blade_status = config_blade_channel(dev, tx, tx_hop_sequence[0], tx_sample_rate, tx_bw, tx_gain);
+        // config the rx side
+        blade_status = config_blade_channel(dev, rx, rx_hop_sequence[0], rx_sample_rate, rx_bw, rx_gain);
 
-        //// recieve mode
-        //if (blade_mode == 0)
-        //{
-        //    // stop transmitting
-        //    transmit = false;
+        // recieve mode
+        if (blade_mode == 0)
+        {
+            // stop transmitting
+            transmit = false;
 
             tuned_freq = rx_hop_sequence[hop_index];
             blade_status = switch_blade_mode(dev, blade_mode, rx);
@@ -343,10 +338,10 @@ int main(int argc, char** argv)
             //transmit = true;
         }
 
-        //if (blade_status != 0)
-        //{
-        //    std::cout << "Error enabling channel: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-        //}
+        if (blade_status != 0)
+        {
+            std::cout << "Error enabling channel: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+        }
 
         //// set initial frequency
         //switch (hop_type)
@@ -361,34 +356,6 @@ int main(int argc, char** argv)
         //    hop_index = 0;
         //    break;
         //}
-
-                // set the sample_rate and bandwidth
-        blade_status = bladerf_set_sample_rate(dev, tx, tx_sample_rate, &tx_sample_rate);
-        blade_status = bladerf_set_bandwidth(dev, tx, tx_bw, &tx_bw);
-
-        // configure the sync to receive/transmit data
-        blade_status = bladerf_sync_config(dev, BLADERF_TX_X1, BLADERF_FORMAT_SC16_Q11, num_buffers, buffer_size, num_transfers, blade_timeout_ms);
-
-        if (blade_status != 0)
-        {
-            std::cout << "Failed to configure TX sync interface - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-        }
-
-        // enable the TX channel RF frontend
-        blade_status = bladerf_enable_module(dev, BLADERF_TX, true);
-        if (blade_status != 0)
-        {
-            std::cout << "Error enabling TX - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-        }
-
-        // the gain must be set after the module has been enabled
-        //blade_status = bladerf_set_gain_mode(dev, tx, BLADERF_GAIN_MANUAL);
-        blade_status = bladerf_set_gain(dev, tx, tx_gain);
-        blade_status = bladerf_get_gain(dev, tx, &tx_gain);
-        if (blade_status != 0)
-        {
-            std::cout << "Error setting TX gain - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-        }
 
         if (signal(SIGINT, sig_handler) == SIG_ERR) 
         {
