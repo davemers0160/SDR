@@ -20,6 +20,22 @@ p {
     color: #495057;
 }
 
+.layout {
+  width: 100%;
+
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  grid-template-columns: repeat(2, 50%);
+  gap: 8px;
+}
+
+.row1 { grid-row: 1; }
+.colSpan2 { grid-column: span 2; }
+.row2 { grid-row: 2; }
+.col1 { grid-column: 1; }
+.col2 { grid-column: 2; }
+.row3 { grid-row: 3; }
+
 .server_section {
     color: #ffffff;
     margin: 0 auto;
@@ -27,7 +43,7 @@ p {
     background-color: #222222;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
-    margin-top: 20px;
+    margin-top: 5px;
     margin-left: 20px;
     margin-right: 20px;
     border-bottom: 2px solid #0056b3;
@@ -40,9 +56,23 @@ p {
     background-color: #222222;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
-    margin-top: 20px;
+    margin-top: 5px;
     margin-left: 20px;
-    margin-right: 20px;    border-bottom: 2px solid #0056b3;
+    margin-right: 20px;
+    border-bottom: 2px solid #0056b3;
+}
+
+.iq_file_section {
+    color: #ffffff;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #222222;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    margin-top: 5px;
+    margin-left: 20px;
+    margin-right: 20px;
+    border-bottom: 2px solid #0056b3;
 }
 
 .submit_btn {
@@ -62,9 +92,28 @@ p {
     background-color: #222222;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
-    margin-top: 20px;
+    margin-top: 5px;
     margin-left: 20px;
-    margin-right: 20px;    border-bottom: 2px solid #0056b3;
+    margin-right: 20px;
+    border-bottom: 2px solid #0056b3;
+}
+
+.message_section {
+    color: #000000;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #FFFFFF;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    margin-top: 5px;
+    margin-left: 5px;
+    margin-right: 20px;
+    border-bottom: 2px solid #0056b3;
+    height: 400px;
+    overflow-y: scroll;
+    display:flex;
+    flex-direction:column-reverse;
+    position: sticky;
 }
 
 .enable_btn {

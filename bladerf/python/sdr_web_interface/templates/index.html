@@ -20,79 +20,99 @@
 
 </head>
 <body>
-    <h1>SDR Server Interface</h1>
+<section class="layout">
 
-    <div class="server_section">
-        <form method="POST">
-            <label for="text_input">SDR Server IP Address: </label>
-            <input type="text" id="sdr_server_ip" name="sdr_server_ip" value="localhost">
-            <BR><BR>
+    <div class="colSpan2 row1"><h1>SDR Server Interface</h1></div>
 
-            <label for="text_input">SDR Server Port: </label>
-            <input type="text" id="sdr_server_port" name="sdr_server_port" value="25252">
+    <div class="col1 row2">
+        <div class="server_section">
+            <form method="POST">
+                <label for="text_input">SDR Server IP Address: </label>
+                <input type="text" id="sdr_server_ip" name="sdr_server_ip" value="localhost">
+                <BR><BR>
 
-            <BR><BR>
-            <input type="submit" class="submit_btn" name="submit_button" value="Connect">
+                <label for="text_input">SDR Server Port: </label>
+                <input type="text" id="sdr_server_port" name="sdr_server_port" value="25252">
 
-        </form>
+                <BR><BR>
+                <input type="submit" class="submit_btn" name="submit_button" value="Connect">
+
+            </form>
+        </div>
+
+        <div class="config_section">
+            <form method="POST">
+
+                <label for="text_input">Samplerate (MHz): </label>
+                <input type="text" id="sample_rate" name="sample_rate" value="20000000">
+                <BR><BR>
+
+                <label for="text_input">Start Frequency (MHz): </label>
+                <input type="text" id="start_freq" name="start_freq" value="1600000000">
+                <BR><BR>
+
+                <label for="text_input">Stop Frequency (MHz): </label>
+                <input type="text" id="stop_freq" name="stop_freq" value="1600000000">
+                <BR><BR>
+
+                <label for="text_input">Frequency Step (MHz): </label>
+                <input type="text" id="freq_step" name="freq_step" value="2000000">
+                <BR><BR>
+
+                <label for="text_input">Gain: </label>
+                <input type="text" id="gain" name="gain" value="65">
+                <BR><BR>
+
+                <label for="text_input">Bandwidth (MHz): </label>
+                <input type="text" id="bandwidth" name="bandwidth" value="5000000">
+
+                <BR><BR>
+                <input type="submit" class="submit_btn" name="submit_button" value="Config Tx">
+
+            </form>
+        </div>
+
+        <div class="iq_file_section">
+            <form method="POST">
+                <label for="file_dropdown">Select IQ File: </label><BR>
+                <select name="file_dropdown" id="file_dropdown">
+                    {% for option in options %}
+                    <option value="{{ option }}" {% if option == selected_value %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+
+                <BR><BR>
+                <input type="submit" class="submit_btn" name="submit_button" value="IQ File">
+            </form>
+        </div>
+
+        <div class="enable_section">
+            <form method="POST">
+
+                {% if tx_enable_state %}
+                    <!--<button type=submit class="btn btn-default" name="lamp" value="on">-->
+                    <!--<input type="submit" name="submit_button" value="Enable TX" style="background-color: green;">-->
+                    <button type="submit" class="enable_btn" name="submit_button" value="on" style="background-color: green;">Disable Tx</button>
+
+                {% else %}
+                    <!--<input type="submit" name="submit_button" value="Disable TX" style="background-color: red;">-->
+                    <button type="submit" class="enable_btn" name="submit_button" value="off" style="background-color: red;">Enable Tx</button>
+                {% endif %}
+                <!--<input type="submit" id="myButton" name="submit_button" value="Enable TX" style="background-color: red;" onclick="change_color()">-->
+                <!--<button id="myButton" style="background-color: lightblue;" onclick="changeColor()">Click me</button>-->
+            </form>
+        </div>
     </div>
 
-    <div class="config_section">
-        <form method="POST">
-
-            <label for="text_input">Samplerate (MHz): </label>
-            <input type="text" id="sample_rate" name="sample_rate" value="20000000">
-            <BR><BR>
-
-            <label for="text_input">Start Frequency (MHz): </label>
-            <input type="text" id="start_freq" name="start_freq" value="1600000000">
-            <BR><BR>
-
-            <label for="text_input">Stop Frequency (MHz): </label>
-            <input type="text" id="stop_freq" name="stop_freq" value="1600000000">
-            <BR><BR>
-
-            <label for="text_input">Frequency Step (MHz): </label>
-            <input type="text" id="freq_step" name="freq_step" value="2000000">
-            <BR><BR>
-
-            <label for="text_input">Gain: </label>
-            <input type="text" id="gain" name="gain" value="65">
-            <BR><BR>
-
-            <label for="text_input">Bandwidth (MHz): </label>
-            <input type="text" id="bandwidth" name="bandwidth" value="5000000">
-            <BR><BR>
-
-            <label for="file_dropdown">Select IQ File: </label><BR>
-            <select name="file_dropdown" id="file_dropdown">
-                {% for option in options %}
-                <option value="{{ option }}" {% if option == selected_value %}selected{% endif %}>{{ option }}</option>
-                {% endfor %}
-            </select>
-
-            <BR><BR>
-            <input type="submit" class="submit_btn" name="submit_button" value="Config Tx">
-
-        </form>
+    <div class="col2 row2">
+        <h3>Message:</h3>
+        <div class="message_section">
+            <pre>{{ message_label }}</pre>
+        </div>
     </div>
 
-    <div class="enable_section">
-        <form method="POST">
+    <div class="colSpan2 row3">4</div>
 
-            {% if tx_enable_state %}
-                <!--<button type=submit class="btn btn-default" name="lamp" value="on">-->
-                <!--<input type="submit" name="submit_button" value="Enable TX" style="background-color: green;">-->
-                <button type="submit" class="enable_btn" name="submit_button" value="on" style="background-color: green;">Disable Tx</button>
-
-            {% else %}
-                <!--<input type="submit" name="submit_button" value="Disable TX" style="background-color: red;">-->
-                <button type="submit" class="enable_btn" name="submit_button" value="off" style="background-color: red;">Enable Tx</button>
-            {% endif %}
-            <!--<input type="submit" id="myButton" name="submit_button" value="Enable TX" style="background-color: red;" onclick="change_color()">-->
-            <!--<button id="myButton" style="background-color: lightblue;" onclick="changeColor()">Click me</button>-->
-        </form>
-    </div>
-
+</section>
 </body>
 </html>

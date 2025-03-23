@@ -38,6 +38,8 @@ class bladerf_sdr_client:
     #SET_TX_SAMPLERATE       = (BLADERF_SERVER_ID | 0x00000204)
     SET_TX_BANDWIDTH        = (BLADERF_SERVER_ID | 0x00000205)
 
+    LOAD_IQ_FILE            = (BLADERF_SERVER_ID | 0x00000300)
+
     UNKNOWN                 = 0xFFFFFFFF
 
     #------------------------------------------------------------------------------
@@ -173,7 +175,36 @@ class bladerf_sdr_client:
             print(f"An error occurred sending/receiving the request: {e}")
 
         finally:
-            return result   
+            return result
+
+    # ------------------------------------------------------------------------------
+    def load_iq_file(self, iq_filename: str):
+        # create the command message and convert to bytearray
+        command = np.uint32(self.LOAD_IQ_FILE)
+        command_msg = struct.pack("<I", command)
+
+        # fp_array = bytearray()
+        fp_array = iq_filename.encode("utf-8")
+
+        # command_msg += fp_array
+
+        result = -1
+        try:
+            # send the command message and the data as a multipart message
+            self.socket.send(command_msg)
+            self.socket.send(fp_array)
+
+            response = self.socket.recv()
+            response = np.array(struct.unpack("<2I", response)).astype(np.uint32)
+
+            if (response[0] == command):
+                result = response[1].astype(np.int32)
+
+        except Exception as e:
+            print(f"An error occurred sending/receiving the request: {e}")
+
+        finally:
+            return result
 
 
     #------------------------------------------------------------------------------

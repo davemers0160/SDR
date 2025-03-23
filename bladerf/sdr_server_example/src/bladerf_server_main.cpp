@@ -85,6 +85,8 @@ inline void transmit_thread(struct bladerf* dev, std::vector<std::complex<int16_
     uint32_t num_samples;
     int32_t blade_status;
     
+    std::cout << "transmit thread started." << std::endl;
+
     // main thread loop
     while (transmit_thread_running == true)
     {
@@ -109,7 +111,9 @@ inline void transmit_thread(struct bladerf* dev, std::vector<std::complex<int16_
         }
 
     }
-    
+
+    std::cout << "transmit thread stopped." << std::endl;
+
 }   // end of transmit_thread
 
 
@@ -171,11 +175,13 @@ int main(int argc, char** argv)
     uint32_t hop_index = 0;
     uint16_t hop_type;
     bool tmp_enable;
+    bool current_tx_status;
 
     std::vector<std::complex<int16_t>> samples;
     std::string iq_filename;
+    std::string tmp_file;
+    std::vector<uint8_t> tmp_vector;
 
-    
     if (argc < 2)
     {
         std::cout << "supply a file name for the IQ data." << std::endl;
@@ -184,7 +190,8 @@ int main(int argc, char** argv)
     }
 
     // read in the parameters
-    std::string param_filename = argv[1];
+    std::string param_filename = std::string(argv[1]);
+    iq_filename = std::string(argv[1]);
     //read_hop_params(param_filename, start_freq, stop_freq, hop_step, sample_rate, tx_bw, hop_type, on_time, off_time, tx1_gain, iq_filename);
 
     generate_range(tx_start_freq, tx_stop_freq, (double)tx_step, tx_hop_sequence);
@@ -216,6 +223,7 @@ int main(int argc, char** argv)
 
     //-----------------------------------------------------------------------------
     // read in the data
+    std::cout << "loading file: " << iq_filename << std::endl;
     read_iq_data(iq_filename, samples);
 
     // the number of IQ samples is the number of samples divided by 2
@@ -311,10 +319,10 @@ int main(int argc, char** argv)
 
             tuned_freq = rx_hop_sequence[hop_index];
             blade_status = switch_blade_mode(dev, blade_mode, rx);
-            blade_status |= bladerf_set_frequency(dev, rx, tuned_freq);
+            //blade_status |= bladerf_set_frequency(dev, rx, tuned_freq);
 
             // start the rx thread
-            recieve = true;
+            //recieve = true;
         }
         // transmit mode
         else
@@ -324,10 +332,10 @@ int main(int argc, char** argv)
 
             tuned_freq = tx_hop_sequence[hop_index];
             blade_status = switch_blade_mode(dev, blade_mode, tx);
-            blade_status |= bladerf_set_frequency(dev, tx, tuned_freq);
+            //blade_status |= bladerf_set_frequency(dev, tx, tuned_freq);
 
             // start the tx thread
-            transmit = true;
+            //transmit = true;
         }
 
         if (blade_status != 0)
@@ -363,7 +371,7 @@ int main(int argc, char** argv)
         // start the tx thread
         tx_thread  = std::thread(transmit_thread, dev, std::ref(samples));
 
-        //std::cout << std::endl << "Sending signals..." << std::endl << std::endl;
+        std::cout << std::endl << "SDR Server Running..." << std::endl << std::endl;
 
         //-----------------------------------------------------------------------------
         // main loop
@@ -488,7 +496,38 @@ int main(int argc, char** argv)
                 msg_result[1] = static_cast<uint32_t>(transmit);
                 break;
 
+            case static_cast<uint32_t>(BLADE_MSG_ID::LOAD_IQ_FILE):
+                current_tx_status = transmit;
+                transmit = false;
 
+                // convert the remaining command messages into a string file name     
+                tmp_vector.clear();
+
+                bladerf_socket.recv(command_messages, zmq::recv_flags::dontwait);
+                tmp_vector.resize(command_messages.size());
+                std::memcpy(tmp_vector.data(), command_messages.data(), command_messages.size());
+
+
+                //tmp_vector.resize((command.size() - 1) * sizeof(uint32_t), 0);
+                ////std::copy(reinterpret_cast<uint8_t*>(command.data()),
+                ////    reinterpret_cast<uint8_t*>(command.data()) + tmp_vector.size(), tmp_vector.begin());
+                std::copy(reinterpret_cast<uint8_t*>(command.data()) + sizeof(uint32_t), reinterpret_cast<uint8_t*>(command.data())+ tmp_vector.size(), tmp_vector.begin());
+
+                iq_filename = std::string(tmp_vector.begin(), tmp_vector.end());
+                //
+                iq_filename.clear();
+                iq_filename.resize((command.size() - 1) * sizeof(uint32_t));
+                std::copy(reinterpret_cast<uint8_t*>(command.data()) + sizeof(uint32_t), reinterpret_cast<uint8_t*>(command.data())+ iq_filename.size(), iq_filename.begin());
+
+                read_iq_data(iq_filename, samples);
+
+                // return transmit to its former status
+                transmit = current_tx_status;
+            
+                msg_result.resize(2);
+                msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::LOAD_IQ_FILE);
+                msg_result[1] = 1;
+                break;
 
             default:
                 msg_result.resize(1);
