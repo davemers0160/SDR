@@ -52,7 +52,7 @@ def index():
     tx_enable_state = False
     # message_label = "Init"
 
-    file_list = scan_directory_for_filetype("D:/data/RF", "sc16")
+    file_list = scan_directory_for_filetype("D:/Projects/data/RF", "sc16")
 
     if request.method == 'POST':
 

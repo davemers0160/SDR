@@ -191,7 +191,7 @@ class bladerf_sdr_client:
         result = -1
         try:
             # send the command message and the data as a multipart message
-            self.socket.send(command_msg)
+            self.socket.send(command_msg, zmq.SNDMORE)
             self.socket.send(fp_array)
 
             response = self.socket.recv()

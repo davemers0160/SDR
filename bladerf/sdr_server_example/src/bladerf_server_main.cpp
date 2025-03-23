@@ -63,6 +63,8 @@ std::mutex rx_mutex;
 std::condition_variable rx_cv;
 
 uint32_t blade_timeout_ms = 10000;
+atomic<uint32_t> num_samples;
+
 
 
 //-----------------------------------------------------------------------------
@@ -82,15 +84,15 @@ void sig_handler(int signo)
 //-----------------------------------------------------------------------------
 inline void transmit_thread(struct bladerf* dev, std::vector<std::complex<int16_t>>& samples)
 {
-    uint32_t num_samples;
+    //uint32_t num_samples;
     int32_t blade_status;
     
-    std::cout << "transmit thread started." << std::endl;
+    std::cout << "Transmit thread started." << std::endl;
 
     // main thread loop
     while (transmit_thread_running == true)
     {
-        num_samples = samples.size();
+        //num_samples = samples.size();
 
         // main transmit loop
         while (transmit == true)
@@ -112,7 +114,7 @@ inline void transmit_thread(struct bladerf* dev, std::vector<std::complex<int16_
 
     }
 
-    std::cout << "transmit thread stopped." << std::endl;
+    std::cout << "Transmit thread stopped." << std::endl;
 
 }   // end of transmit_thread
 
@@ -206,11 +208,12 @@ int main(int argc, char** argv)
     //-----------------------------------------------------------------------------
     // ZMQ message containers
     // zmq::message_t to hold the received messages
-    zmq::message_t command_messages;
+    std::vector<zmq::message_t> command_messages;
     std::optional<uint32_t> num_messages = std::nullopt;
 
     // vector of bytes to store the data portion of the multipart message
     std::vector<uint32_t> command;
+    std::vector<uint8_t> message_data;
 
     // vector to store and send the response back to the client
     std::vector<uint32_t> msg_result;
@@ -379,8 +382,7 @@ int main(int argc, char** argv)
         {
 
             // non-blocking call to receive multiple messages
-            //num_messages = zmq::recv_multipart(sb_socket, std::back_inserter(command_messages), zmq::recv_flags::dontwait);
-            num_messages = bladerf_socket.recv(command_messages, zmq::recv_flags::dontwait);
+            num_messages = zmq::recv_multipart(bladerf_socket, std::back_inserter(command_messages), zmq::recv_flags::dontwait);
             
             // check to see if any messages have arrived
             if (num_messages.has_value() == false)
@@ -392,15 +394,32 @@ int main(int argc, char** argv)
             
             // clear out the containers if we receive a new message
             command.clear();
+            message_data.clear();
+            msg_result.clear();
             
             // parse the first part of the message to get the command
-            std::cout << "Received message with " << num_messages.value() << " messages" << std::endl;
+            std::cout << "Received multipart message with " << num_messages.value() << " messages" << std::endl;
             
             // place the command messages into the command vector
-            command.resize(command_messages.size() / sizeof(uint32_t));
-            std::memcpy(command.data(), command_messages.data(), command_messages.size());
+            command.resize(command_messages[0].size() / sizeof(uint32_t));
+            std::memcpy(command.data(), command_messages[0].data(), command_messages[0].size());
             std::cout << "message command id: " << num2str(command[0], "0x%08X") << std::endl;
                 
+            // if there are more than one message in a multipart message try to parse the message
+            if (num_messages.value() > 1)
+            {
+                // parse the message into the message_data vector
+                message_data.resize(command_messages[1].size());               // / sizeof(uint8_t)
+                std::memcpy(message_data.data(), command_messages[1].data(), command_messages[1].size());
+                std::cout << "data size: " << message_data.size() << std::endl;
+
+                // TODO: Debug
+                for (idx = 0; idx < message_data.size(); ++idx)
+                    std::cout << (uint16_t)message_data[idx] << " ";
+
+                std::cout << std::endl << std::endl;
+            }
+
             // check the command value and perform some action
             switch (command[0])
             {
@@ -500,26 +519,16 @@ int main(int argc, char** argv)
                 current_tx_status = transmit;
                 transmit = false;
 
-                // convert the remaining command messages into a string file name     
-                tmp_vector.clear();
+                // if there is a filename try to load the data
+                if (message_data.size() > 0)
+                {
+                    iq_filename.clear();
+                    iq_filename.resize(message_data.size());
+                    std::copy(message_data.begin(), message_data.end(), iq_filename.begin());
 
-                bladerf_socket.recv(command_messages, zmq::recv_flags::dontwait);
-                tmp_vector.resize(command_messages.size());
-                std::memcpy(tmp_vector.data(), command_messages.data(), command_messages.size());
-
-
-                //tmp_vector.resize((command.size() - 1) * sizeof(uint32_t), 0);
-                ////std::copy(reinterpret_cast<uint8_t*>(command.data()),
-                ////    reinterpret_cast<uint8_t*>(command.data()) + tmp_vector.size(), tmp_vector.begin());
-                std::copy(reinterpret_cast<uint8_t*>(command.data()) + sizeof(uint32_t), reinterpret_cast<uint8_t*>(command.data())+ tmp_vector.size(), tmp_vector.begin());
-
-                iq_filename = std::string(tmp_vector.begin(), tmp_vector.end());
-                //
-                iq_filename.clear();
-                iq_filename.resize((command.size() - 1) * sizeof(uint32_t));
-                std::copy(reinterpret_cast<uint8_t*>(command.data()) + sizeof(uint32_t), reinterpret_cast<uint8_t*>(command.data())+ iq_filename.size(), iq_filename.begin());
-
-                read_iq_data(iq_filename, samples);
+                    samples = read_iq_data<int16_t>(iq_filename);
+                    num_samples = samples.size();
+                }
 
                 // return transmit to its former status
                 transmit = current_tx_status;
