@@ -52,7 +52,8 @@ def index():
     tx_enable_state = False
     # message_label = "Init"
 
-    file_list = scan_directory_for_filetype("D:/Projects/data/RF", "sc16")
+    # file_list = scan_directory_for_filetype("D:/Projects/data/RF", "sc16")
+    file_list = []
 
     if request.method == 'POST':
 
@@ -79,6 +80,10 @@ def index():
 
             # create the client server
             sdr_client = bladerf_sdr_client(sdr_server_ip, sdr_server_port)
+
+            # get the listing for the available IQ files
+            result, file_list = sdr_client. get_iq_files()
+
 
         elif request.form["submit_button"] == "Config Tx":
             sr_str = request.form["sample_rate"]

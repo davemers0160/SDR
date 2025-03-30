@@ -38,7 +38,8 @@ class bladerf_sdr_client:
     #SET_TX_SAMPLERATE       = (BLADERF_SERVER_ID | 0x00000204)
     SET_TX_BANDWIDTH        = (BLADERF_SERVER_ID | 0x00000205)
 
-    LOAD_IQ_FILE            = (BLADERF_SERVER_ID | 0x00000300)
+    GET_IQ_FILES            = (BLADERF_SERVER_ID | 0x00000300)
+    LOAD_IQ_FILE            = (BLADERF_SERVER_ID | 0x00000301)
 
     UNKNOWN                 = 0xFFFFFFFF
 
@@ -114,7 +115,7 @@ class bladerf_sdr_client:
             response = np.array(struct.unpack(res_fs, response)).astype(np.uint32)
 
             if (response[0] == np.uint32(self.SELECT_MODE)):
-                result = response[1];
+                result = response[1]
 
         except Exception as e:
             print(f"An error occurred sending/receiving the request: {e}")
@@ -145,7 +146,7 @@ class bladerf_sdr_client:
             response = np.array(struct.unpack(res_fs, response)).astype(np.uint32)
 
             if (response[0] == np.uint32(self.CONFIG_TX)):
-                result = response[1];
+                result = response[1]
 
         except Exception as e:
             print(f"An error occurred sending/receiving the request: {e}")
@@ -169,7 +170,7 @@ class bladerf_sdr_client:
             response = np.array(struct.unpack(res_fs, response)).astype(np.uint32)
 
             if (response[0] == np.uint32(self.ENABLE_TX)):
-                result = response[1];
+                result = response[1]
 
         except Exception as e:
             print(f"An error occurred sending/receiving the request: {e}")
@@ -177,7 +178,48 @@ class bladerf_sdr_client:
         finally:
             return result
 
-    # ------------------------------------------------------------------------------
+    #-------------------------------------------------------------------------------
+    def get_iq_files(self):
+        # create the command message and convert to bytearray
+        command = np.uint32(self.GET_IQ_FILEs)
+        command_msg = struct.pack("<I", command)
+
+        result = -1
+        file_list = []
+
+        try:
+            # send the command message
+            self.socket.send(command_msg)
+
+            response = self.socket.recv()
+            res_fs = "<" + str(len(response)//4) + "I"
+            response = np.array(struct.unpack(res_fs, response)).astype(np.uint32)
+
+            if (response[0] == np.uint32(self.ENABLE_TX)):
+                result = response[1]
+
+                if result == 1:
+                    num_files = response[2]
+                    tmp_file_list = response[3:]
+
+                    # got through the list and get the individual file names for the server
+                    for idx in range(num_files):
+                        filename_length = tmp_file_list[0]
+
+                        tmp_file = ''.join(chr(num) for num in tmp_file_list[1:filename_length])
+                        file_list.append(tmp_file)
+
+                        tmp_file_list = tmp_file_list[filename_length+1:]
+
+        except Exception as e:
+            print(f"An error occurred sending/receiving the request: {e}")
+
+        finally:
+            return result, file_list
+
+
+
+    #-------------------------------------------------------------------------------
     def load_iq_file(self, iq_filename: str):
         # create the command message and convert to bytearray
         command = np.uint32(self.LOAD_IQ_FILE)
@@ -233,11 +275,6 @@ class bladerf_sdr_client:
 
         finally:
             return result
-
-
-
-
-
 
     #------------------------------------------------------------------------------
     def close(self):

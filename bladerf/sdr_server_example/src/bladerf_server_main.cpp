@@ -181,6 +181,9 @@ int main(int argc, char** argv)
 
     std::vector<std::complex<int16_t>> samples;
     std::string iq_filename;
+    std::string iq_file_path;
+    std::vector<std::string> iq_file_list;
+
     std::string tmp_file;
     std::vector<uint8_t> tmp_vector;
 
@@ -192,8 +195,16 @@ int main(int argc, char** argv)
     }
 
     // read in the parameters
-    std::string param_filename = std::string(argv[1]);
-    iq_filename = std::string(argv[1]);
+    //std::string param_filename = std::string(argv[1]);
+    //iq_filename = std::string(argv[1]);
+    
+    iq_file_path = std::string(argv[1]);
+    iq_file_list = directory_listing(iq_file_path, ".sc16");
+    if (iq_file_list.empty() == false)
+    {
+        iq_filename = iq_file_path + iq_file_list[0];
+    }
+
     //read_hop_params(param_filename, start_freq, stop_freq, hop_step, sample_rate, tx_bw, hop_type, on_time, off_time, tx1_gain, iq_filename);
 
     generate_range(tx_start_freq, tx_stop_freq, (double)tx_step, tx_hop_sequence);
@@ -513,6 +524,32 @@ int main(int argc, char** argv)
                 msg_result.resize(2);
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::ENABLE_TX);
                 msg_result[1] = static_cast<uint32_t>(transmit);
+                break;
+
+            case static_cast<uint32_t>(BLADE_MSG_ID::GET_IQ_FILES):
+                msg_result.resize(2);
+                msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::LOAD_IQ_FILE);
+                msg_result[1] = 1;
+
+                // the number of iq files in the supplied directory = iq_file_list.size()
+                // data order:
+                // - number of files (uint32_t)
+                // - file 1 length (uint32_t)
+                // - file 1 name (uint32_t) per letter
+                // - file 2 length (uint32_t)
+                // - file 2 name (uint32_t) per letter
+                // - etc
+                msg_result.push_back((uint32_t)iq_file_list.size());
+                for (idx = 0; idx < iq_file_list.size(); ++idx)
+                {
+                    msg_result.push_back((uint32_t)iq_file_list[idx].size());
+
+                    for (jdx = 0; jdx < iq_file_list[idx].size(); ++jdx)
+                    {
+                        msg_result.push_back(iq_file_list[idx][jdx]);
+                    }
+                }
+
                 break;
 
             case static_cast<uint32_t>(BLADE_MSG_ID::LOAD_IQ_FILE):

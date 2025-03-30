@@ -268,7 +268,7 @@ inline bool enable_channel(struct bladerf* dev, bladerf_channel ch, bool desired
 }   // end of enable_channel
 
 //-----------------------------------------------------------------------------
-std::vector<std::string> directory_listing(const std::string& path, const std::string& extension = ".*")
+std::vector<std::string> directory_listing(const std::string &path, const std::string &extension = ".*")
 {
     std::vector<std::string> files;
     for (const auto& entry : std::filesystem::directory_iterator(path)) 
