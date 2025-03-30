@@ -20,6 +20,7 @@
 sudo apt-get update
 sudo apt-get install -y build-essential git cmake libusb-1* libsndfile1 libncurses5-dev autoconf-archive libtool pkg-config autotools-dev automake
 
+#------------------------------------------------------------------------------
 # create the python virtual environment and install required packages
 python -m venv ~/venv --system-site-packages --symlinks
 
@@ -35,6 +36,7 @@ echo 'source activate_venv.sh' >> .bashrc
 source ~/venv/bin/activate
 pip install numpy pyyaml soundfile pyzmq
 
+#------------------------------------------------------------------------------
 # grab all of the projects 
 mkdir -p Projects
 cd Projects
@@ -134,6 +136,7 @@ cd build
 cmake ..
 cmake --build . --config Release -- -j4
 
+#------------------------------------------------------------------------------
 # copy the service that will start the bladeRF code
 # note: ${USER} in the bladerf.service file will need to be changed to the actual username
 sudo cp /home/${USER}/Projects/SDR/bladerf/common/bladerf.service /lib/systemd/system/.
