@@ -71,7 +71,7 @@ sudo make install
 cd ~/Projects
 
 echo " "
-echo "Building rapcppzmq..."
+echo "Building cppzmq..."
 echo " "
 
 git clone --depth 1 -b v4.10.0 https://github.com/zeromq/cppzmq
