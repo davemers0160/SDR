@@ -3,8 +3,10 @@
 
 #include <cstdint>
 #include <string>
+#include <filesystem>
 
 #include <file_parser.h>
+
 
 // bladeRF includes
 #include <libbladeRF.h>
@@ -265,6 +267,19 @@ inline bool enable_channel(struct bladerf* dev, bladerf_channel ch, bool desired
 
 }   // end of enable_channel
 
+//-----------------------------------------------------------------------------
+std::vector<std::string> directory_listing(const std::string& path, const std::string& extension = ".*")
+{
+    std::vector<std::string> files;
+    for (const auto& entry : std::filesystem::directory_iterator(path)) 
+    {
+        if (std::filesystem::is_regular_file(entry) && entry.path().extension() == extension) 
+        {
+            files.push_back(entry.path().filename().string());
+        }
+    }
+    return files;
+}   // end of directory_listing
 
 
 #endif  // _BLADERF_COMMON_H_

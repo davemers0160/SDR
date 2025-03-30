@@ -18,7 +18,7 @@
 # -----------------------------------------------------------------------------
 
 sudo apt-get update
-sudo apt-get install -y build-essential git cmake libusb-1* libsndfile1 libncurses5-dev
+sudo apt-get install -y build-essential git cmake libusb-1* libsndfile1 libncurses5-dev autoconf-archive libtool pkg-config autotools-dev automake
 
 # create the python virtual environment and install required packages
 python -m venv ~/venv --system-site-packages --symlinks
@@ -33,14 +33,59 @@ echo 'source activate_venv.sh' >> .bashrc
 
 # activate the venv to install some things
 source ~/venv/bin/activate
-pip install numpy pyyaml soundfile
+pip install numpy pyyaml soundfile pyzmq
 
 # grab all of the projects 
 mkdir -p Projects
 cd Projects
 
 echo " "
-echo "Building BladeRF project"
+echo "Building libgpiod v2.2..."
+echo " "
+
+git clone --depth 1 -b v2.2.x https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git
+cd libgpiod
+./autogen.sh --enable-tools --enable-bindings-cxx --prefix=/opt
+make
+sudo make install
+
+# create a configuration file that adds the libgpiod path to the OS permanently
+sudo sh -c 'echo "# adding libgpio v2.2 path" > /etc/ld.so.conf.d/libgpio.conf'
+sudo sh -c 'echo "/opt/lib" >> /etc/ld.so.conf.d/libgpio.conf'
+sudo ldconfig
+
+cd ~/Projects
+
+echo " "
+echo "Building libzmq..."
+echo " "
+
+git clone --depth 1 -b v4.3.5 https://github.com/zeromq/libzmq
+cd libzmq
+mkdir build
+cd build
+cmake ..
+cmake --build . --config Release -- -j4
+sudo make install
+
+cd ~/Projects
+
+echo " "
+echo "Building rapcppzmq..."
+echo " "
+
+git clone --depth 1 -b v4.10.0 https://github.com/zeromq/cppzmq
+cd cppzmq
+mkdir build
+cd build
+cmake -DCPPZMQ_BUILD_TESTS=OFF .. 
+cmake --build . --config Release -- -j4
+sudo make install
+
+cd ~/Projects
+
+echo " "
+echo "Building BladeRF..."
 echo " "
 
 git clone https://github.com/Nuand/bladeRF.git ./bladeRF
@@ -62,7 +107,7 @@ git clone https://github.com/davemers0160/python_common
 git clone --recursive https://github.com/davemers0160/rapidyaml
 
 echo " "
-echo "Building rapidyaml project"
+echo "Building rapidyaml..."
 echo " "
 
 # build the rapidyaml library
@@ -74,6 +119,10 @@ cmake --build . --config Release -- -j4
 sudo make install && sudo ldconfig
 
 cd ~/Projects
+
+echo " "
+echo "Building SDR..."
+echo " "
 
 # clone the SDR library
 git clone https://github.com/davemers0160/SDR
