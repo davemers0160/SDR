@@ -181,7 +181,7 @@ class bladerf_sdr_client:
     #-------------------------------------------------------------------------------
     def get_iq_files(self):
         # create the command message and convert to bytearray
-        command = np.uint32(self.GET_IQ_FILEs)
+        command = np.uint32(self.GET_IQ_FILES)
         command_msg = struct.pack("<I", command)
 
         result = -1
@@ -195,7 +195,7 @@ class bladerf_sdr_client:
             res_fs = "<" + str(len(response)//4) + "I"
             response = np.array(struct.unpack(res_fs, response)).astype(np.uint32)
 
-            if (response[0] == np.uint32(self.ENABLE_TX)):
+            if (response[0] == np.uint32(self.GET_IQ_FILES)):
                 result = response[1]
 
                 if result == 1:
@@ -206,7 +206,7 @@ class bladerf_sdr_client:
                     for idx in range(num_files):
                         filename_length = tmp_file_list[0]
 
-                        tmp_file = ''.join(chr(num) for num in tmp_file_list[1:filename_length])
+                        tmp_file = ''.join(chr(num) for num in tmp_file_list[1:filename_length+1])
                         file_list.append(tmp_file)
 
                         tmp_file_list = tmp_file_list[filename_length+1:]

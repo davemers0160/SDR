@@ -20,7 +20,7 @@ from bladerf_sdr_client import bladerf_sdr_client
 # current module (__name__) as argument.
 app = Flask(__name__)
 
-global sdr_client, message_label
+global sdr_client, message_label, file_list
 
 
 #------------------------------------------------------------------------------
@@ -46,14 +46,14 @@ def hello_world():
 
 @app.route('/test2', methods=['GET', 'POST'])
 def index():
-    global sdr_client, message_label
+    global sdr_client, message_label, file_list
 
     iq_filename = None
     tx_enable_state = False
     # message_label = "Init"
 
     # file_list = scan_directory_for_filetype("D:/Projects/data/RF", "sc16")
-    file_list = []
+
 
     if request.method == 'POST':
 
@@ -61,7 +61,7 @@ def index():
             # print("yes")
             tx_enable_state = False
 
-            result = sdr_client.enable_tx(True)
+            result = sdr_client.enable_tx(tx_enable_state)
             message_label = message_label + "Enable Tx: {}\n".format(result)
             print("result: {}\n".format(result))
 
@@ -69,7 +69,7 @@ def index():
             # print("no")
             tx_enable_state = True
 
-            result = sdr_client.enable_tx(False)
+            result = sdr_client.enable_tx(tx_enable_state)
             message_label = message_label + "Disable Tx: {}\n".format(result)
             print("result: {}\n".format(result))
 
@@ -136,9 +136,10 @@ def index():
 
 # main driver function
 if __name__ == '__main__':
-    global message_label
+    global message_label, file_list
 
     message_label = "Init\n"
+    file_list = []
 
     # run() method of Flask class runs the application
     # on the local development server.

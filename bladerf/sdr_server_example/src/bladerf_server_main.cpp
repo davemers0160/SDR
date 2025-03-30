@@ -391,6 +391,8 @@ int main(int argc, char** argv)
         // main loop
         while (is_running)
         {
+            // clear all the old messages
+            command_messages.clear();
 
             // non-blocking call to receive multiple messages
             num_messages = zmq::recv_multipart(bladerf_socket, std::back_inserter(command_messages), zmq::recv_flags::dontwait);
@@ -528,7 +530,7 @@ int main(int argc, char** argv)
 
             case static_cast<uint32_t>(BLADE_MSG_ID::GET_IQ_FILES):
                 msg_result.resize(2);
-                msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::LOAD_IQ_FILE);
+                msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::GET_IQ_FILES);
                 msg_result[1] = 1;
 
                 // the number of iq files in the supplied directory = iq_file_list.size()
@@ -563,7 +565,7 @@ int main(int argc, char** argv)
                     iq_filename.resize(message_data.size());
                     std::copy(message_data.begin(), message_data.end(), iq_filename.begin());
 
-                    samples = read_iq_data<int16_t>(iq_filename);
+                    samples = read_iq_data<int16_t>(iq_file_path + iq_filename);
                     num_samples = samples.size();
                 }
 
