@@ -22,6 +22,9 @@ cmake_minimum_required(VERSION 2.8.12)
 PROJECT(bladerf_tx_example)
 set(exe_name "blade_tx")
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
 set(PLATFORM "$ENV{PLATFORM}" CACHE INTERNAL "Copied from environment variable")
 if("${PLATFORM}" STREQUAL "")
     set(PLATFORM "NOT_SET")
@@ -74,7 +77,7 @@ else()
     
 endif()
 
-include(${COMMON_ROOT}/cmake_utils/use_cpp_11.cmake)
+#include(${COMMON_ROOT}/cmake_utils/use_cpp_11.cmake)
 include(${COMMON_ROOT}/cmake_utils/use_sse_avx.cmake)
 
 # look for any *.c and *.cpp files

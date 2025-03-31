@@ -18,7 +18,7 @@
 # -----------------------------------------------------------------------------
 
 sudo apt-get update
-sudo apt-get install -y build-essential git cmake libusb-1* libsndfile1 libncurses5-dev autoconf-archive libtool pkg-config autotools-dev automake
+sudo apt-get install -y build-essential git cmake libusb-1* libsndfile1 libncurses5-dev autoconf autoconf-archive libtool pkg-config autotools-dev automake
 
 #------------------------------------------------------------------------------
 # create the python virtual environment and install required packages
