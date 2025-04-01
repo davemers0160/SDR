@@ -34,7 +34,7 @@ echo 'source activate_venv.sh' >> .bashrc
 
 # activate the venv to install some things
 source ~/venv/bin/activate
-pip install numpy pyyaml soundfile pyzmq
+pip install numpy pyyaml soundfile pyzmq gpiozero
 
 #------------------------------------------------------------------------------
 # grab all of the projects 
