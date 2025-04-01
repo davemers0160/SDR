@@ -15,6 +15,9 @@
 # windows: cmake --build . --config Release
 # linux: cmake --build . --config Release -- -j4
 #
+# RPI
+# cmake -DBUILD_RPI=ON ..
+#
 
 
 cmake_minimum_required(VERSION 2.8.12)
@@ -23,7 +26,9 @@ PROJECT(bladerf_server_example)
 set(exe_name "blade_server")
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+option(BUILD_RPI "Build project for Raspberry Pi" OFF)
 
 set(PLATFORM "$ENV{PLATFORM}" CACHE INTERNAL "Copied from environment variable")
 if("${PLATFORM}" STREQUAL "")
@@ -63,6 +68,10 @@ if(WIN32)
     
 else()
 
+    # get the libgpiod paths
+    set(LIBGPIO_DIR "/opt/lib/libgpiodcxx.so")
+    set(LIBGPIO_INCLUDE "/opt/include")
+
     if(${PLATFORM} STREQUAL "MainGear")
         set(_ECLIPSE_VERSION "3.8")
         set(COMMON_ROOT "~/Projects/Common")
@@ -100,6 +109,17 @@ set(project_libs ${project_libs}
     ${RYML_LIB}
     cppzmq
     )
+
+if(BUILD_RPI)
+    set(project_includes ${project_includes}
+        ${LIBGPIO_INCLUDE}
+        )
+        
+    set(project_libs ${project_libs}
+        ${LIBGPIO_DIR}
+        )
+        
+endif()
 
 #------------------------------------------------------------------------------
 message(" ")
