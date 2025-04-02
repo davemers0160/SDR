@@ -29,6 +29,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(BUILD_RPI "Build project for Raspberry Pi" OFF)
+option(ENABLE_FASTTUNE "Option to use fast tune capability vs. normal tuning" OFF)
 
 set(PLATFORM "$ENV{PLATFORM}" CACHE INTERNAL "Copied from environment variable")
 if("${PLATFORM}" STREQUAL "")
@@ -120,7 +121,10 @@ if(BUILD_RPI)
     set(project_libs ${project_libs}
         ${LIBGPIO_DIR}
         )
-        
+endif()
+
+if(ENABLE_FASTTUNE)
+    add_compile_definitions(WITH_FASTTUNE)	
 endif()
 
 #------------------------------------------------------------------------------

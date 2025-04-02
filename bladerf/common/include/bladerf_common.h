@@ -31,12 +31,19 @@ inline std::ostream& operator<< (
 }
 
 //-----------------------------------------------------------------------------
-typedef struct hop_params 
+class hop_parameters 
 {
-    bladerf_frequency f;                // 32-bit frequency, in Hz
-    struct bladerf_quick_tune qt;       // Quick tune parameters
+public:
+    bladerf_frequency freq;                		// Frequency (Hz)
+    struct bladerf_quick_tune qt_params;       	// Quick tune parameters
+	
+	hop_parameters() {}
+	
+	hop_parameters(bladerf_frequency f) : freq(f) {}
+	
+private:	
 
-} hop_params;
+};
 
 //-----------------------------------------------------------------------------
 int select_bladerf(int num_devices, struct bladerf_devinfo* device_list)
@@ -281,5 +288,43 @@ std::vector<std::string> directory_listing(const std::string &path, const std::s
     return files;
 }   // end of directory_listing
 
+//-----------------------------------------------------------------------------
+std::vector<hop_parameters> get_hop_parameters(struct bladerf* dev, bladerf_channel ch, bladerf_frequency start_freq, bladerf_frequency stop_freq, bladerf_frequency step)
+{
+	uint32_t idx;
+	uint32_t num_hops;
+	int32_t blade_status;
+	std::vector<bladerf_frequency> hop_sequence;	
+	
+	generate_range(start_freq, stop_freq, (double)step, hop_sequence);
+
+	std::vector<hop_parameters> hp(hop_sequence.size());
+	
+	for(idx = 0; idx < hop_sequence.size(); ++idx)
+	{
+		hp[idx].freq = hop_sequence[idx];
+		
+#if defined(WITH_FASTTUNE)
+		// tune to the next frequency
+		blade_status = bladerf_set_frequency(dev, ch, hp[idx].freq);
+		if (blade_status != 0)
+		{
+			std::cout << "Failed to set frequency: " << hp[idx].freq << "Hz.   error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+		}
+		
+		// wait for a little to let things settle
+		std::this_thread::sleep_for(std::chrono::milliseconds(50));
+		
+		// get the quicktune parameters from the blade FPGA
+		blade_status = bladerf_get_quick_tune(dev, ch, &hp[idx].qt_params);
+		if (blade_status != 0)
+		{
+			std::cout << "Failed to get quick tune: " << hp[idx].freq << "Hz.   error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+		}	
+#endif
+	}
+	
+	return hp;
+}
 
 #endif  // _BLADERF_COMMON_H_

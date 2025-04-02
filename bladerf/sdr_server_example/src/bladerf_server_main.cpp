@@ -76,6 +76,12 @@ const gpiod::line::value gpio_on = gpiod::line::value::ACTIVE;
 const gpiod::line::value gpio_off = gpiod::line::value::INACTIVE;
 #endif
 
+std::vector<hop_parameters> tx_hops;
+std::vector<hop_parameters> rx_hops;
+atomic<uint32_t> num_tx_hops;
+atomic<uint32_t> num_rx_hops;
+atomic<uint16_t> hop_type(0);
+
 //-----------------------------------------------------------------------------
 void sig_handler(int signo)
 {
@@ -95,7 +101,8 @@ inline void transmit_thread(struct bladerf* dev, std::vector<std::complex<int16_
 {
     //uint32_t num_samples;
     int32_t blade_status;
-    
+    uint32_t hop_index;
+	
     std::cout << "Transmit thread started." << std::endl;
 
     // main thread loop
@@ -105,8 +112,23 @@ inline void transmit_thread(struct bladerf* dev, std::vector<std::complex<int16_
 
         // main transmit loop
         while (transmit == true)
-        {        
-            blade_status = bladerf_sync_tx(dev, (int16_t*)samples.data(), num_samples, NULL, blade_timeout_ms);
+        {    
+			switch (hop_type)
+			{
+			case 0:
+			   hop_index = 0;
+			   break;
+			case 1:
+			   hop_index = (uint32_t)(rand() % num_tx_hops);
+			   break;
+			default:
+			   hop_index = 0;
+			   break;
+			}    
+			
+			blade_status = bladerf_set_frequency(dev, tx, tx_hops[hop_index].freq);
+			
+            blade_status != bladerf_sync_tx(dev, (int16_t*)samples.data(), num_samples, NULL, blade_timeout_ms);
 
             if (blade_status != 0)
             {
@@ -161,8 +183,7 @@ int main(int argc, char** argv)
     bladerf_frequency tx_stop_freq = 1500000000;
     int64_t tx_step = 30000000;
     //bool tx_enable = true;
-    std::vector<hop_params> tx_hops;
-    std::vector<bladerf_frequency> tx_hop_sequence;
+    //std::vector<bladerf_frequency> tx_hop_sequence;
     std::thread tx_thread;
 
     // RX parameters
@@ -174,8 +195,7 @@ int main(int argc, char** argv)
     bladerf_frequency rx_stop_freq = 1500000000;
     int64_t rx_step = 30000000;
     //bool rx_enable = false;
-    std::vector<hop_params> rx_hops;
-    std::vector<bladerf_frequency> rx_hop_sequence;
+    //std::vector<bladerf_frequency> rx_hop_sequence;
     std::thread rx_thread;
 
     bladerf_frequency tuned_freq;
@@ -184,7 +204,7 @@ int main(int argc, char** argv)
     double off_time;
     uint64_t num_samples;
     uint32_t hop_index = 0;
-    uint16_t hop_type;
+    //uint16_t hop_type = 0;
     bool tmp_enable;
     bool current_tx_status;
 
@@ -235,11 +255,11 @@ int main(int argc, char** argv)
 
     //read_hop_params(param_filename, start_freq, stop_freq, hop_step, sample_rate, tx_bw, hop_type, on_time, off_time, tx1_gain, iq_filename);
 
-    generate_range(tx_start_freq, tx_stop_freq, (double)tx_step, tx_hop_sequence);
-    uint32_t num_tx_hops = tx_hop_sequence.size();
+    //generate_range(tx_start_freq, tx_stop_freq, (double)tx_step, tx_hop_sequence);
+    //uint32_t num_tx_hops = tx_hop_sequence.size();
 
-    generate_range(rx_start_freq, rx_stop_freq, (double)rx_step, rx_hop_sequence);
-    uint32_t num_rx_hops = rx_hop_sequence.size();
+    //generate_range(rx_start_freq, rx_stop_freq, (double)rx_step, rx_hop_sequence);
+    //uint32_t num_rx_hops = rx_hop_sequence.size();
 
     // initialize a random number generator
     srand((unsigned)time(NULL));
@@ -303,6 +323,11 @@ int main(int argc, char** argv)
         }
         std::cout << dev_info << std::endl;
 
+		tx_hops = get_hop_parameters(dev, tx, tx_start_freq, tx_stop_freq, tx_step);
+		rx_hops = get_hop_parameters(dev, rx, rx_start_freq, rx_stop_freq, rx_step);
+		num_tx_hops = tx_hops.size();
+		num_rx_hops = rx_hops.size();
+
         std::cout << "number of TX hops: " << num_tx_hops << std::endl << std::endl;
 
         //for (idx = 0; idx < num_tx_hops; ++idx)
@@ -349,9 +374,9 @@ int main(int argc, char** argv)
         blade_status = bladerf_set_gain_mode(dev, rx, BLADERF_GAIN_MGC);
 
         // config the tx side
-        blade_status = config_blade_channel(dev, tx, tx_hop_sequence[0], tx_sample_rate, tx_bw, tx_gain);
+        blade_status = config_blade_channel(dev, tx, tx_hops[0].freq, tx_sample_rate, tx_bw, tx_gain);
         // config the rx side
-        blade_status = config_blade_channel(dev, rx, rx_hop_sequence[0], rx_sample_rate, rx_bw, rx_gain);
+        blade_status = config_blade_channel(dev, rx, rx_hops[0].freq, rx_sample_rate, rx_bw, rx_gain);
 
         // recieve mode
         if (blade_mode == 0)
@@ -359,7 +384,7 @@ int main(int argc, char** argv)
             // stop transmitting
             transmit = false;
 
-            tuned_freq = rx_hop_sequence[hop_index];
+            //tuned_freq = rx_hops[hop_index].freq;
             blade_status = switch_blade_mode(dev, blade_mode, rx);
             //blade_status |= bladerf_set_frequency(dev, rx, tuned_freq);
 
@@ -372,7 +397,7 @@ int main(int argc, char** argv)
             // stop recieving
             recieve = false;
 
-            tuned_freq = tx_hop_sequence[hop_index];
+            //tuned_freq = tx_hops[hop_index].freq;
             blade_status = switch_blade_mode(dev, blade_mode, tx);
             //blade_status |= bladerf_set_frequency(dev, tx, tuned_freq);
 
@@ -491,7 +516,7 @@ int main(int argc, char** argv)
                     // stop transmitting
                     transmit = false;
 
-                    tuned_freq = rx_hop_sequence[hop_index];
+                    tuned_freq = rx_hops[hop_index].freq;
                     blade_status = switch_blade_mode(dev, blade_mode, rx);
                     blade_status |= bladerf_set_frequency(dev, rx, tuned_freq);
 
@@ -504,7 +529,7 @@ int main(int argc, char** argv)
                     // stop recieving
                     recieve = false;
 
-                    tuned_freq = tx_hop_sequence[hop_index];
+                    tuned_freq = tx_hops[hop_index].freq;
                     blade_status = switch_blade_mode(dev, blade_mode, tx);
                     blade_status |= bladerf_set_frequency(dev, tx, tuned_freq);
 
