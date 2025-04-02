@@ -23,6 +23,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
+#include <filesystem>
 
 // ZMQ includes
 #include <zmq.hpp>
@@ -31,6 +32,11 @@
 // bladeRF includes
 #include <libbladeRF.h>
 #include <bladeRF2.h>
+
+#if defined(WITH_RPI)
+// libgpiod header
+#include <gpiod.hpp>
+#endif
 
 // Custom Includes
 #include "num2string.h"
@@ -65,7 +71,10 @@ std::condition_variable rx_cv;
 uint32_t blade_timeout_ms = 10000;
 atomic<uint32_t> num_samples;
 
-
+#if defined(WITH_RPI)
+const gpiod::line::value gpio_on = gpiod::line::value::ACTIVE;
+const gpiod::line::value gpio_off = gpiod::line::value::INACTIVE;
+#endif
 
 //-----------------------------------------------------------------------------
 void sig_handler(int signo)
@@ -186,6 +195,25 @@ int main(int argc, char** argv)
 
     std::string tmp_file;
     std::vector<uint8_t> tmp_vector;
+
+#if defined(WITH_RPI)
+    // define the gpio chip and pins
+    const std::filesystem::path chip_path("/dev/gpiochip0");
+    const ::gpiod::line::offset rf_ctrl_pin = 16;
+
+    gpiod::line::value gpio_value;
+
+    // initialize the chip & gpio line
+    gpiod::chip gpio_chip = gpiod::chip(chip_path);
+    gpiod::request_builder gpio_request = gpio_chip.prepare_request();
+
+    gpio_request.set_consumer("rf_control");
+    gpio_request.add_line_settings(rf_ctrl_pin, gpiod::line_settings().set_direction(gpiod::line::direction::OUTPUT));
+
+    gpiod::line_request rf_gpio_line = gpio_request.do_request();
+
+#endif
+
 
     if (argc < 2)
     {
@@ -385,6 +413,9 @@ int main(int argc, char** argv)
         // start the tx thread
         tx_thread  = std::thread(transmit_thread, dev, std::ref(samples));
 
+        // wait for a little to get the tx thread started
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
         std::cout << std::endl << "SDR Server Running..." << std::endl << std::endl;
 
         //-----------------------------------------------------------------------------
@@ -514,14 +545,11 @@ int main(int argc, char** argv)
 
                 transmit = enable_channel(dev, tx, tmp_enable, transmit);
 
-                //if (tx_enable == true && transmit == false)
-                //{
-                //    transmit = true;
-                //}
-                //else if (tx_enable == false && transmit == true)
-                //{
-                //    transmit = false;
-                //}
+#if defined(WITH_RPI)
+                // set the amp gpio pin
+                gpio_value = (transmit == true) ? gpio_on : gpio_off;
+                gpio_line.set_value(rf_ctrl_pin, gpio_value);
+#endif
 
                 msg_result.resize(2);
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::ENABLE_TX);
@@ -596,6 +624,15 @@ int main(int argc, char** argv)
         transmit = false;
         recieve = false;
         tx_thread.join();
+
+
+#if defined(WITH_RPI)
+        // close the gpio line
+        rf_gpio_line.release();
+        gpio_chip.close();
+
+        std::cout << "Closing GPIO..." << std::endl;
+#endif
 
         std::cout << "Closing BladeRF SDR Server..." << std::endl;
 

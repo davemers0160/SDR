@@ -20,7 +20,7 @@
 #
 
 
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.9)
 
 PROJECT(bladerf_server_example)
 set(exe_name "blade_server")
@@ -111,6 +111,8 @@ set(project_libs ${project_libs}
     )
 
 if(BUILD_RPI)
+    add_compile_definitions(WITH_RPI)
+
     set(project_includes ${project_includes}
         ${LIBGPIO_INCLUDE}
         )
