@@ -124,6 +124,7 @@ p {
     font-size: 14px;
     border-radius: 5px;
     cursor: pointer;
+    margin-right:10px;
 }
 
 a {

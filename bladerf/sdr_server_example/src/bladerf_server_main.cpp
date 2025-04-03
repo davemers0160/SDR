@@ -80,7 +80,7 @@ std::vector<hop_parameters> tx_hops;
 std::vector<hop_parameters> rx_hops;
 atomic<uint32_t> num_tx_hops;
 atomic<uint32_t> num_rx_hops;
-atomic<uint16_t> hop_type(0);
+atomic<uint16_t> hop_type(1);
 
 //-----------------------------------------------------------------------------
 void sig_handler(int signo)
@@ -108,11 +108,10 @@ inline void transmit_thread(struct bladerf* dev, std::vector<std::complex<int16_
     // main thread loop
     while (transmit_thread_running == true)
     {
-        //num_samples = samples.size();
-
         // main transmit loop
         while (transmit == true)
         {    
+			// select the hop type
 			switch (hop_type)
 			{
 			case 0:
@@ -230,6 +229,7 @@ int main(int argc, char** argv)
     gpio_request.set_consumer("rf_control");
     gpio_request.add_line_settings(rf_ctrl_pin, gpiod::line_settings().set_direction(gpiod::line::direction::OUTPUT));
 
+	// allocate the gpio for use
     gpiod::line_request rf_gpio_line = gpio_request.do_request();
 
 #endif
@@ -329,32 +329,6 @@ int main(int argc, char** argv)
 		num_rx_hops = rx_hops.size();
 
         std::cout << "number of TX hops: " << num_tx_hops << std::endl << std::endl;
-
-        //for (idx = 0; idx < num_tx_hops; ++idx)
-        //{
-
-        //    hop_params p;
-        //    p.f = tx_hop_sequence[idx];
-
-        //    tx_hops.push_back(p);
-
-        //    blade_status = bladerf_set_frequency(dev, tx, hops[idx].f);
-        //    if (blade_status != 0)
-        //    {
-        //        std::cout << "Failed to set frequency: " << hops[idx].f << "Hz.   error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-        //        std::cin.ignore();
-        //    }
-
-        //    //blade_status = bladerf_get_quick_tune(dev, tx, &hops[idx].qt);
-        //    //if (blade_status != 0)
-        //    //{
-        //    //    std::cout << "Failed to get quick tune: " << hops[idx].f << "Hz.   error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-        //    //    std::cin.ignore();
-        //    //}
-
-        //    std::cout << idx << ": " << hops[idx].f << ", nios_profile: " << hops[idx].qt.nios_profile << ", rffe_profile: " << (uint16_t)hops[idx].qt.rffe_profile << std::endl;
-        //}
-
         std::cout << "number of RX hops: " << num_rx_hops << std::endl << std::endl;
 
         //-----------------------------------------------------------------------------
@@ -562,19 +536,33 @@ int main(int argc, char** argv)
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::CONFIG_TX);
                 msg_result[1] = blade_status;
                 break;
+				
+            case static_cast<uint32_t>(BLADE_MSG_ID::ENABLE_AMP):
+                recieve = false;
+                tmp_enable = (bool)command[1];
+
+#if defined(WITH_RPI)
+                // set the amp gpio pin
+                gpio_value = (tmp_enable == true) ? gpio_on : gpio_off;
+                gpio_line.set_value(rf_ctrl_pin, gpio_value);
+#endif
+
+                msg_result.resize(2);
+                msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::ENABLE_AMP);
+                msg_result[1] = static_cast<uint32_t>(tmp_enable);
+                break;
 
             case static_cast<uint32_t>(BLADE_MSG_ID::ENABLE_TX):
-
                 recieve = false;
                 tmp_enable = (bool)command[1];
 
                 transmit = enable_channel(dev, tx, tmp_enable, transmit);
 
-#if defined(WITH_RPI)
-                // set the amp gpio pin
-                gpio_value = (transmit == true) ? gpio_on : gpio_off;
-                gpio_line.set_value(rf_ctrl_pin, gpio_value);
-#endif
+// #if defined(WITH_RPI)
+                ////set the amp gpio pin
+                // gpio_value = (transmit == true) ? gpio_on : gpio_off;
+                // gpio_line.set_value(rf_ctrl_pin, gpio_value);
+// #endif
 
                 msg_result.resize(2);
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::ENABLE_TX);

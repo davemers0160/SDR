@@ -26,14 +26,25 @@ frequency_step = 20000000
 sample_rate = 40000000
 bw = 5000000
 gain = 60
+
+
 result = sdr_client.config_tx(start_frequency, stop_frequency, frequency_step, sample_rate, bw, gain)
 print("result: {}\n".format(result))
 
+result = sdr_client.enable_amp(True)
+print("result: {}\n".format(result))
+
+result = sdr_client.enable_amp(False)
+print("result: {}\n".format(result))
+
+result = sdr_client.enable_amp(True)
+print("result: {}\n".format(result))
 
 result = sdr_client.enable_tx(True)
 print("result: {}\n".format(result))
 
-
+result = sdr_client.enable_tx(False)
+print("result: {}\n".format(result))
 
 
 # close the client - closes the socket and the context

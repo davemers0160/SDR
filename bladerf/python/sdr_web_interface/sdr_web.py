@@ -35,7 +35,7 @@ def scan_directory_for_filetype(directory_path, file_extension):
 
     return matching_files
 
-
+#------------------------------------------------------------------------------
 # The route() function of the Flask class is a decorator,
 # which tells the application which URL should call
 # the associated function.
@@ -44,6 +44,7 @@ def scan_directory_for_filetype(directory_path, file_extension):
 def hello_world():
     return 'Hello World'
 
+#------------------------------------------------------------------------------
 @app.route('/test2', methods=['GET', 'POST'])
 def index():
     global sdr_client, message_label, file_list
@@ -51,40 +52,89 @@ def index():
     iq_filename = None
     tx_enable_state = False
     # message_label = "Init"
+    amp_enable_state = False
 
     # file_list = scan_directory_for_filetype("D:/Projects/data/RF", "sc16")
 
 
     if request.method == 'POST':
 
+        #------------------------------------------------------------------------------
+        # TX enable button
         if request.form["submit_button"] == "on":
             # print("yes")
-            tx_enable_state = False
+            try:
+                tx_enable_state = False
 
-            result = sdr_client.enable_tx(tx_enable_state)
-            message_label = message_label + "Enable Tx: {}\n".format(result)
-            print("result: {}\n".format(result))
-
+                result = sdr_client.enable_tx(tx_enable_state)
+                message_label = message_label + "Enable Tx: {}\n".format(result)
+                print("result: {}\n".format(result))
+            except NameError:
+                tx_enable_state = False
+                message_label = message_label + "Failed\n"
+        
         elif request.form["submit_button"] == "off":
             # print("no")
-            tx_enable_state = True
+            try:
+                tx_enable_state = True
 
-            result = sdr_client.enable_tx(tx_enable_state)
-            message_label = message_label + "Disable Tx: {}\n".format(result)
-            print("result: {}\n".format(result))
+                result = sdr_client.enable_tx(tx_enable_state)
+                message_label = message_label + "Disable Tx: {}\n".format(result)
+                print("result: {}\n".format(result))
+            except NameError:
+                tx_enable_state = False
+                message_label = message_label + "Failed\n"
 
+
+        # ------------------------------------------------------------------------------
+        # Amp enable button
+        if request.form["submit_button"] == "amp_on":
+            try:
+                amp_enable_state = False
+
+                result = sdr_client.enable_amp(amp_enable_state)
+                message_label = message_label + "Enable Amp: {}\n".format(result)
+                print("result: {}\n".format(result))
+
+            except NameError:
+                amp_enable_state = False
+                message_label = message_label + "Failed\n"
+
+        elif request.form["submit_button"] == "amp_off":
+            try:
+                amp_enable_state = True
+
+                result = sdr_client.enable_amp(amp_enable_state)
+                message_label = message_label + "Disable Amp: {}\n".format(result)
+                print("result: {}\n".format(result))
+
+            except NameError:
+                amp_enable_state = False
+                message_label = message_label + "Failed\n"
+
+        #------------------------------------------------------------------------------
+        # Connect to the SDR server button
         elif request.form["submit_button"] == "Connect":
-            sdr_server_ip = request.form["sdr_server_ip"]
-            sdr_server_port = request.form["sdr_server_port"]
-            message_label = message_label + "Connect\n"
+            tmp_msg = ""
+            file_list = []
+            try:
+                sdr_server_ip = request.form["sdr_server_ip"]
+                sdr_server_port = request.form["sdr_server_port"]
+                tmp_msg = "Connect\n"
 
-            # create the client server
-            sdr_client = bladerf_sdr_client(sdr_server_ip, sdr_server_port)
+                # create the client server
+                sdr_client = bladerf_sdr_client(sdr_server_ip, sdr_server_port)
 
-            # get the listing for the available IQ files
-            result, file_list = sdr_client. get_iq_files()
+                # get the listing for the available IQ files
+                result, file_list = sdr_client.get_iq_files()
 
+            except NameError:
+                tmp_msg = "SDR client not initialized, connect to server first\n"
 
+            message_label = message_label + tmp_msg
+
+        #------------------------------------------------------------------------------
+        # configure TX button
         elif request.form["submit_button"] == "Config Tx":
             sr_str = request.form["sample_rate"]
             start_freq_str = request.form["start_freq"]
@@ -112,16 +162,22 @@ def index():
                 freq_step = np.uint32(2000000)
                 gain = np.uint32(65)
                 bandwidth = np.uint32(5000000)
+                message_label = message_label + "Check the entires, something isn't right\n"
 
+        #------------------------------------------------------------------------------
+        # update the IQ file
         elif request.form["submit_button"] == "IQ File":
-            iq_filename = request.form['file_dropdown']
             tmp_msg = ""
 
             try:
+                iq_filename = request.form['file_dropdown']
                 result = sdr_client.load_iq_file(iq_filename)
                 tmp_msg = "IQ File: {}\n".format(result)
                 print("result: {}\n".format(result))
 
+            except Exception as e:
+                # print(f"An error occurred: {e}")
+                tmp_msg = "{}\n".format(e)
             except NameError:
                 tmp_msg = "SDR client not initialized, connect to server first\n"
 
@@ -131,7 +187,8 @@ def index():
     #     bp = 3
 
     # return render_template('index.html')  # Ensure you have an index.html file
-    return render_template('index.html', options=file_list, tx_enable_state=tx_enable_state, message_label=message_label) #, selected_value=text_data)
+    return render_template('index.html', options=file_list, tx_enable_state=tx_enable_state,
+                           amp_enable_state=amp_enable_state, message_label=message_label) #, selected_value=text_data)
 
 
 # main driver function

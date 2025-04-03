@@ -37,6 +37,8 @@ class bladerf_sdr_client:
     SET_TX_GAIN             = (BLADERF_SERVER_ID | 0x00000203)
     #SET_TX_SAMPLERATE       = (BLADERF_SERVER_ID | 0x00000204)
     SET_TX_BANDWIDTH        = (BLADERF_SERVER_ID | 0x00000205)
+    ENABLE_AMP              = (BLADERF_SERVER_ID | 0x00000206)
+    
 
     GET_IQ_FILES            = (BLADERF_SERVER_ID | 0x00000300)
     LOAD_IQ_FILE            = (BLADERF_SERVER_ID | 0x00000301)
@@ -153,6 +155,31 @@ class bladerf_sdr_client:
 
         finally:
             return result       
+
+    #------------------------------------------------------------------------------
+    def enable_amp(self, status: bool):
+        command = np.array([self.ENABLE_AMP, int(status)]).astype(np.uint32)
+        cmd_fs = "<" + str(command.size) + "I"       
+        command_msg = struct.pack(cmd_fs, *command)
+
+        result = -1
+        try:
+            # send the command message
+            self.socket.send(command_msg)
+
+            response = self.socket.recv()
+            res_fs = "<" + str(len(response)//4) + "I"
+            response = np.array(struct.unpack(res_fs, response)).astype(np.uint32)
+
+            if (response[0] == np.uint32(self.ENABLE_AMP)):
+                result = response[1]
+
+        except Exception as e:
+            print(f"An error occurred sending/receiving the request: {e}")
+
+        finally:
+            return result
+
 
     #------------------------------------------------------------------------------
     def enable_tx(self, status: bool):

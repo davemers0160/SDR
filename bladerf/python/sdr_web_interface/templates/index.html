@@ -100,7 +100,14 @@
                 {% endif %}
                 <!--<input type="submit" id="myButton" name="submit_button" value="Enable TX" style="background-color: red;" onclick="change_color()">-->
                 <!--<button id="myButton" style="background-color: lightblue;" onclick="changeColor()">Click me</button>-->
+
+                {% if amp_enable_state %}
+                    <button type="submit" class="enable_btn" name="submit_button" value="amp_on" style="background-color: green;">Disable Amp</button>
+                {% else %}
+                    <button type="submit" class="enable_btn" name="submit_button" value="amp_off" style="background-color: red;">Enable Amp</button>
+                {% endif %}
             </form>
+
         </div>
     </div>
 
@@ -111,7 +118,7 @@
         </div>
     </div>
 
-    <div class="colSpan2 row3">4</div>
+    <!-- <div class="colSpan2 row3"><div>4</div><div>5</div></div> -->
 
 </section>
 </body>
