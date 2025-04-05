@@ -97,7 +97,7 @@ void sig_handler(int signo)
 }   // end of sig_handler
 
 //-----------------------------------------------------------------------------
-inline void transmit_thread(struct bladerf* dev, std::vector<std::complex<int16_t>>& samples)
+inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector<std::complex<int16_t>>& samples)
 {
     //uint32_t num_samples;
     int32_t blade_status;
@@ -410,7 +410,7 @@ int main(int argc, char** argv)
         recieve_thread_running = true;
 
         // start the tx thread
-        tx_thread  = std::thread(transmit_thread, dev, std::ref(samples));
+        tx_thread  = std::thread(transmit_thread, dev, tx, std::ref(samples));
 
         // wait for a little to get the tx thread started
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -523,10 +523,11 @@ int main(int argc, char** argv)
                 tx_bw = command[CONFIG_BANDWIDTH_INDEX];
                 tx_gain = command[CONFIG_GAIN_INDEX];
 
-                generate_range(tx_start_freq, tx_stop_freq, (double)tx_step, tx_hop_sequence);
-                num_tx_hops = tx_hop_sequence.size();
+                //generate_range(tx_start_freq, tx_stop_freq, (double)tx_step, tx_hop_sequence);
+                tx_hops = get_hop_parameters(dev, tx, tx_start_freq, tx_stop_freq, tx_step);
+                num_tx_hops = tx_hops.size();
 
-                blade_status = config_blade_channel(dev, tx, tx_hop_sequence[0], tx_sample_rate, tx_bw, tx_gain);
+                blade_status = config_blade_channel(dev, tx, tx_hops[0].freq, tx_sample_rate, tx_bw, tx_gain);
                 if (blade_status != 0)
                 {
                     std::cout << "Error configuring channel: " << std::string(bladerf_strerror(blade_status)) << std::endl;
@@ -544,7 +545,7 @@ int main(int argc, char** argv)
 #if defined(WITH_RPI)
                 // set the amp gpio pin
                 gpio_value = (tmp_enable == true) ? gpio_on : gpio_off;
-                gpio_line.set_value(rf_ctrl_pin, gpio_value);
+                rf_gpio_line.set_value(rf_ctrl_pin, gpio_value);
 #endif
 
                 msg_result.resize(2);
@@ -561,7 +562,7 @@ int main(int argc, char** argv)
 // #if defined(WITH_RPI)
                 ////set the amp gpio pin
                 // gpio_value = (transmit == true) ? gpio_on : gpio_off;
-                // gpio_line.set_value(rf_ctrl_pin, gpio_value);
+                // rf_gpio_line.set_value(rf_ctrl_pin, gpio_value);
 // #endif
 
                 msg_result.resize(2);
