@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # Instructions for this script
 # From windows you can sftp into the pi and copy this repo into /home/{$USER}/Projects
-# sftp loki@xxx.xxx.xxx.xxx
+# sftp username@xxx.xxx.xxx.xxx
 # 
 # wget https://github.com/davemers0160/Common/raw/master/misc/rpi_sdr_config.sh
 #
