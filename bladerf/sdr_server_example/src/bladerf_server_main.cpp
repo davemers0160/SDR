@@ -87,7 +87,7 @@ void sig_handler(int signo)
 {
     if ((signo == SIGINT) | (signo = SIGTERM))
     {
-        fprintf(stderr, "received SIGINT\n");
+        fprintf(stderr, "received SIGINT: %d\n", signo);
         is_running = false;
         transmit_thread_running = false;
         recieve_thread_running = false;
