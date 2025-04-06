@@ -365,7 +365,7 @@ int main(int argc, char** argv)
             transmit = false;
 
             //tuned_freq = rx_hops[hop_index].freq;
-            blade_status = switch_blade_mode(dev, blade_mode, rx);
+            blade_status = switch_blade_mode(dev, blade_mode, tx, rx);
             //blade_status |= bladerf_set_frequency(dev, rx, tuned_freq);
 
             // start the rx thread
@@ -378,7 +378,7 @@ int main(int argc, char** argv)
             recieve = false;
 
             //tuned_freq = tx_hops[hop_index].freq;
-            blade_status = switch_blade_mode(dev, blade_mode, tx);
+            blade_status = switch_blade_mode(dev, blade_mode, tx, rx);
             //blade_status |= bladerf_set_frequency(dev, tx, tuned_freq);
 
             // start the tx thread
@@ -497,7 +497,7 @@ int main(int argc, char** argv)
                     transmit = false;
 
                     tuned_freq = rx_hops[hop_index].freq;
-                    blade_status = switch_blade_mode(dev, blade_mode, rx);
+                    blade_status = switch_blade_mode(dev, blade_mode, tx, rx);
                     blade_status |= bladerf_set_frequency(dev, rx, tuned_freq);
 
                     // start the rx thread
@@ -510,7 +510,7 @@ int main(int argc, char** argv)
                     recieve = false;
 
                     tuned_freq = tx_hops[hop_index].freq;
-                    blade_status = switch_blade_mode(dev, blade_mode, tx);
+                    blade_status = switch_blade_mode(dev, blade_mode, tx, rx);
                     blade_status |= bladerf_set_frequency(dev, tx, tuned_freq);
 
                     // start the tx thread

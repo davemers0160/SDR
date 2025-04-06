@@ -180,7 +180,7 @@ void read_bladerf_params(std::string param_filename,
 }   // end of read_bladerf_params
 
 //-----------------------------------------------------------------------------
-inline int32_t switch_blade_mode(struct bladerf* dev, uint32_t mode, bladerf_channel ch)
+inline int32_t switch_blade_mode(struct bladerf* dev, uint32_t mode, bladerf_channel &tx, bladerf_channel &rx)
 {
     int32_t blade_status = 0;
     switch (mode)
@@ -188,8 +188,8 @@ inline int32_t switch_blade_mode(struct bladerf* dev, uint32_t mode, bladerf_cha
     // RX mode
     case 0:
         // enable the TX channel RF frontend
-        blade_status = bladerf_enable_module(dev, BLADERF_TX, false);
-        blade_status |= bladerf_enable_module(dev, BLADERF_RX, true);
+        blade_status = bladerf_enable_module(dev, tx, false);
+        blade_status |= bladerf_enable_module(dev, rx, true);
         if (blade_status != 0)
         {
             std::cout << "Error enabling RX - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
@@ -200,8 +200,8 @@ inline int32_t switch_blade_mode(struct bladerf* dev, uint32_t mode, bladerf_cha
     case 1:
 
         // enable the TX channel RF frontend
-        blade_status = bladerf_enable_module(dev, BLADERF_RX, false);
-        blade_status |= bladerf_enable_module(dev, BLADERF_TX, true);
+        blade_status = bladerf_enable_module(dev, rx, false);
+        blade_status |= bladerf_enable_module(dev, tx, true);
         if (blade_status != 0)
         {
             std::cout << "Error enabling TX - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
