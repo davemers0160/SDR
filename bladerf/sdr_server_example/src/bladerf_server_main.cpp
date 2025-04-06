@@ -659,6 +659,10 @@ int main(int argc, char** argv)
         std::cout << "Closing GPIO..." << std::endl;
 #endif
 
+        // close the server
+        std::cout << std::endl << "Closing the Server..." << std::endl;
+        close_server(bladerf_context, bladerf_socket);
+
         std::cout << "Closing BladeRF SDR Server..." << std::endl;
 
         // disable the tx channel RF frontend

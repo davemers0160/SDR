@@ -79,5 +79,22 @@ inline zmq::socket_t create_server_connection(std::string ip_address, std::strin
     return socket;
 }  // end of create_server_connection
 
+//-----------------------------------------------------------------------------
+inline void close_server(zmq::context_t& context, zmq::socket_t &socket1)
+{
+    uint32_t idx;
+    
+    //for (idx = 0; idx < sockets.size(); ++idx)
+    //{
+    //    sockets[idx].close();
+    //}
+    // close the sockets
+    socket1.close();
+    //socket2.close();
+
+    // close the contect
+    context.close();
+
+}   // end of close_server
 
 #endif  // _BLADERF_SERVER_COMMANDS_H_
