@@ -60,6 +60,7 @@ atomic<bool> is_running = false;
 
 atomic<bool> transmit_thread_running = false;
 atomic<bool> transmit = false;
+atomic<uint32_t> num_tx_samples;
 std::mutex tx_mutex;
 std::condition_variable tx_cv;
 
@@ -69,11 +70,11 @@ std::mutex rx_mutex;
 std::condition_variable rx_cv;
 
 uint32_t blade_timeout_ms = 10000;
-atomic<uint32_t> num_samples;
 
 #if defined(WITH_RPI)
 const gpiod::line::value gpio_on = gpiod::line::value::ACTIVE;
 const gpiod::line::value gpio_off = gpiod::line::value::INACTIVE;
+const gpiod::line::offset rf_ctrl_pin = 20;
 #endif
 
 std::vector<hop_parameters> tx_hops;
@@ -100,7 +101,6 @@ void sig_handler(int signo)
 //-----------------------------------------------------------------------------
 inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector<std::complex<int16_t>>& samples)
 {
-    //uint32_t num_samples;
     int32_t blade_status = 0;
     uint32_t hop_index = 0;
     uint8_t rffe_index = 0;
@@ -110,11 +110,13 @@ inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector
     // main thread loop
     while (transmit_thread_running == true)
     {
+        std::this_thread::sleep_for(std::chrono::microseconds(10));
+
         // main transmit loop
         while (transmit == true)
         {    
-
-            blade_status = bladerf_sync_tx(dev, (int16_t*)samples.data(), num_samples, NULL, blade_timeout_ms);
+            //std::cout << "ns1: " << num_tx_samples << " ns2: " << samples.size() << std::endl;
+            blade_status = bladerf_sync_tx(dev, (int16_t*)samples.data(), num_tx_samples, NULL, blade_timeout_ms);
 
             if (blade_status != 0)
             {
@@ -125,8 +127,7 @@ inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector
 			switch (tx_hop_type)
 			{
 			case 0:
-                hop_index = (uint32_t)((hop_index+1) % num_tx_hops);
-
+               hop_index = (uint32_t)((hop_index+1) % num_tx_hops);
 			   break;
 			case 1:
 			   hop_index = (uint32_t)(rand() % num_tx_hops);
@@ -134,7 +135,9 @@ inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector
 			default:
 			   hop_index = 0;
 			   break;
-			}    
+			}
+
+            std::cout << "hop_index: " << hop_index << std::endl;
 
 #if defined(WITH_FASTTUNE)
             tx_hops[hop_index].qt_params.rffe_profile = rffe_index;
@@ -143,6 +146,10 @@ inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector
 #else
             blade_status = bladerf_set_frequency(dev, tx, tx_hops[hop_index].freq);
 #endif	
+            if (blade_status != 0)
+            {
+                std::cout << "Unable to set the center frequency: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+            }
         }
 
         // this wait will put the thread to sleep until transmit is true
@@ -210,7 +217,7 @@ int main(int argc, char** argv)
 
     double on_time;
     double off_time;
-    uint64_t num_samples;
+    //uint64_t num_samples;
     uint32_t hop_index = 0;
     //uint16_t hop_type = 0;
     bool tmp_enable;
@@ -227,7 +234,6 @@ int main(int argc, char** argv)
 #if defined(WITH_RPI)
     // define the gpio chip and pins
     const std::filesystem::path chip_path("/dev/gpiochip0");
-    const ::gpiod::line::offset rf_ctrl_pin = 20;
 
     gpiod::line::value gpio_value;
 
@@ -296,9 +302,9 @@ int main(int argc, char** argv)
     read_iq_data(iq_filename, samples);
 
     // the number of IQ samples is the number of samples divided by 2
-    num_samples = samples.size();
-    //double sample_duration = (num_samples) / (double)tx_sample_rate;
-    std::cout << "num_samples: " << num_samples << std::endl;
+    num_tx_samples = samples.size();
+    //double sample_duration = (num_tx_samples) / (double)tx_sample_rate;
+    std::cout << "num_tx_samples: " << num_tx_samples << std::endl;
 
 
     //-----------------------------------------------------------------------------
@@ -332,66 +338,99 @@ int main(int argc, char** argv)
         }
         std::cout << dev_info << std::endl;
 
-		tx_hops = get_hop_parameters(dev, tx, tx_start_freq, tx_stop_freq, tx_step);
-		rx_hops = get_hop_parameters(dev, rx, rx_start_freq, rx_stop_freq, rx_step);
-		num_tx_hops = tx_hops.size();
-		num_rx_hops = rx_hops.size();
+        tx_hops = get_hop_parameters(dev, tx, tx_start_freq, tx_stop_freq, tx_step);
+        rx_hops = get_hop_parameters(dev, rx, rx_start_freq, rx_stop_freq, rx_step);
+        num_tx_hops = tx_hops.size();
+        num_rx_hops = rx_hops.size();
 
         std::cout << "number of TX hops: " << num_tx_hops << std::endl << std::endl;
         std::cout << "number of RX hops: " << num_rx_hops << std::endl << std::endl;
 
         //-----------------------------------------------------------------------------
+        // set the sample_rate and bandwidth
+        blade_status = bladerf_set_sample_rate(dev, tx, tx_sample_rate, &tx_sample_rate);
+        blade_status |= bladerf_set_bandwidth(dev, tx, tx_bw, &tx_bw);
+
         // configure the sync to receive/transmit data
-        blade_status = bladerf_sync_config(dev, BLADERF_TX_X1, BLADERF_FORMAT_SC16_Q11, num_buffers, buffer_size, num_transfers, blade_timeout_ms);
+        blade_status |= bladerf_sync_config(dev, BLADERF_TX_X1, BLADERF_FORMAT_SC16_Q11, num_buffers, buffer_size, num_transfers, blade_timeout_ms);
         if (blade_status != 0)
         {
             std::cout << "Failed to configure TX sync interface - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
         }
         
-        blade_status = bladerf_sync_config(dev, BLADERF_RX_X1, BLADERF_FORMAT_SC16_Q11, num_buffers, buffer_size, num_transfers, blade_timeout_ms);
-        if (blade_status != 0)
-        {
-            std::cout << "Failed to configure RX sync interface - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-        }
+        //blade_status = bladerf_sync_config(dev, BLADERF_RX_X1, BLADERF_FORMAT_SC16_Q11, num_buffers, buffer_size, num_transfers, blade_timeout_ms);
+        //if (blade_status != 0)
+        //{
+        //    std::cout << "Failed to configure RX sync interface - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+        //}
 
         //blade_status = bladerf_set_gain_mode(dev, rx, BLADERF_GAIN_MGC);
 
         // config the tx side
-        blade_status = config_blade_channel(dev, tx, tx_hops[0].freq, tx_sample_rate, tx_bw, tx_gain);
+        //blade_status = config_blade_channel(dev, tx, tx_hops[0].freq, tx_sample_rate, tx_bw, tx_gain);
+        // enable the TX channel RF frontend
+        blade_status = bladerf_enable_module(dev, BLADERF_TX, true);
+        if (blade_status != 0)
+        {
+            std::cout << "Error enabling TX - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+        }
+
+        // the gain must be set after the module has been enabled
+        blade_status = bladerf_set_gain_mode(dev, tx, BLADERF_GAIN_MANUAL);
+        blade_status = bladerf_set_gain(dev, tx, tx_gain);
+        blade_status = bladerf_get_gain(dev, tx, &tx_gain);
+        if (blade_status != 0)
+        {
+            std::cout << "Error setting TX gain - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+        }
+
         // config the rx side
-        blade_status = config_blade_channel(dev, rx, rx_hops[0].freq, rx_sample_rate, rx_bw, rx_gain);
+        //blade_status = config_blade_channel(dev, rx, rx_hops[0].freq, rx_sample_rate, rx_bw, rx_gain);
 
         // recieve mode
-        if (blade_mode == 0)
-        {
-            // stop transmitting
-            transmit = false;
+        //if (blade_mode == 0)
+        //{
+        //    // stop transmitting
+        //    transmit = false;
 
-            //tuned_freq = rx_hops[hop_index].freq;
-            blade_status = switch_blade_mode(dev, blade_mode, tx, rx);
-            //blade_status |= bladerf_set_frequency(dev, rx, tuned_freq);
+        //    //tuned_freq = rx_hops[hop_index].freq;
+        //    blade_status = switch_blade_mode(dev, blade_mode, tx, rx);
+        //    //blade_status |= bladerf_set_frequency(dev, rx, tuned_freq);
 
-            // start the rx thread
-            //recieve = true;
-        }
-        // transmit mode
-        else
-        {
-            // stop recieving
-            recieve = false;
+        //    // start the rx thread
+        //    //recieve = true;
+        //}
+        //// transmit mode
+        //else
+        //{
+        //    // stop recieving
+        //    recieve = false;
 
-            //tuned_freq = tx_hops[hop_index].freq;
-            blade_status = switch_blade_mode(dev, blade_mode, tx, rx);
-            //blade_status |= bladerf_set_frequency(dev, tx, tuned_freq);
+        //    //tuned_freq = tx_hops[hop_index].freq;
+        //    blade_status = switch_blade_mode(dev, blade_mode, tx, rx);
+        //    //blade_status |= bladerf_set_frequency(dev, tx, tuned_freq);
 
-            // start the tx thread
-            //transmit = true;
-        }
+        //    // start the tx thread
+        //    //transmit = true;
+        //}
 
+        blade_status = bladerf_set_frequency(dev, tx, tx_hops[0].freq);
         if (blade_status != 0)
         {
             std::cout << "Error enabling channel: " << std::string(bladerf_strerror(blade_status)) << std::endl;
         }
+
+        std::cout << "------------------------------------------------------------------" << std::endl;
+        std::cout << "Transmitter:" << std::endl;
+        std::cout << "  start freq:  " << tx_start_freq << std::endl;
+        std::cout << "  stop freq:   " << tx_stop_freq << std::endl;
+        std::cout << "  freq step:   " << tx_step << std::endl;
+        std::cout << "  num hops:    " << num_tx_hops << std::endl;
+        std::cout << "  hop type:    " << tx_hop_type << std::endl;
+        std::cout << "  sample_rate: " << tx_sample_rate << std::endl;
+        std::cout << "  bw:          " << tx_bw << std::endl;
+        std::cout << "  tx1_gain:    " << tx_gain << std::endl;
+        std::cout << "------------------------------------------------------------------" << std::endl << std::endl;
 
         //// set initial frequency
         //switch (hop_type)
@@ -407,9 +446,15 @@ int main(int argc, char** argv)
         //    break;
         //}
 
+        // handle SIGINT signals
         if (signal(SIGINT, sig_handler) == SIG_ERR) 
         {
             std::cerr << "Unable to catch SIGINT signals" << std::endl;
+        }
+        // handle SIGTERM signals
+        if (signal(SIGTERM, sig_handler) == SIG_ERR)
+        {
+            std::cerr << "Unable to catch SIGTERM signals" << std::endl;
         }
 
         is_running = true;
@@ -536,11 +581,27 @@ int main(int argc, char** argv)
                 tx_hops = get_hop_parameters(dev, tx, tx_start_freq, tx_stop_freq, tx_step);
                 num_tx_hops = tx_hops.size();
 
-                blade_status = config_blade_channel(dev, tx, tx_hops[0].freq, tx_sample_rate, tx_bw, tx_gain);
+                //blade_status = config_blade_channel(dev, tx, tx_hops[0].freq, tx_sample_rate, tx_bw, tx_gain);
+                blade_status = bladerf_set_gain(dev, tx, tx_gain);
+                blade_status = bladerf_get_gain(dev, tx, &tx_gain);
+                blade_status |= bladerf_set_bandwidth(dev, tx, tx_bw, &tx_bw);
+                blade_status |= bladerf_set_frequency(dev, tx, tx_hops[0].freq);
                 if (blade_status != 0)
                 {
                     std::cout << "Error configuring channel: " << std::string(bladerf_strerror(blade_status)) << std::endl;
                 }
+
+                std::cout << "------------------------------------------------------------------" << std::endl;
+                std::cout << "Transmitter:" << std::endl;
+                std::cout << "  start freq:  " << tx_start_freq << std::endl;
+                std::cout << "  stop freq:   " << tx_stop_freq << std::endl;
+                std::cout << "  freq step:   " << tx_step << std::endl;
+                std::cout << "  num hops:    " << num_tx_hops << std::endl;
+                std::cout << "  hop type:    " << tx_hop_type << std::endl;
+                std::cout << "  sample_rate: " << tx_sample_rate << std::endl;
+                std::cout << "  bw:          " << tx_bw << std::endl;
+                std::cout << "  tx1_gain:    " << tx_gain << std::endl;
+                std::cout << "------------------------------------------------------------------" << std::endl << std::endl;
 
                 msg_result.resize(2);
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::CONFIG_TX);
@@ -569,7 +630,15 @@ int main(int argc, char** argv)
                 recieve = false;
                 tmp_enable = (bool)command[1];
 
-                transmit = enable_channel(dev, tx, tmp_enable, transmit);
+                //transmit = enable_channel(dev, tx, tmp_enable, transmit);
+                {
+                    std::lock_guard<std::mutex> lock(tx_mutex);
+                    transmit = tmp_enable;
+                }
+                if(transmit == true)
+                    tx_cv.notify_one();
+
+                std::cout << "transmit: " << transmit << std::endl;
 
 // #if defined(WITH_RPI)
                 ////set the amp gpio pin
@@ -622,8 +691,8 @@ int main(int argc, char** argv)
                     std::copy(message_data.begin(), message_data.end(), iq_filename.begin());
 
                     samples = read_iq_data<int16_t>(iq_file_path + iq_filename);
-                    num_samples = samples.size();
-                    std::cout << "num_samples: " << num_samples << std::endl;
+                    num_tx_samples = samples.size();
+                    std::cout << "num_tx_samples: " << num_tx_samples << std::endl;
                 }
 
                 // return transmit to its former status
