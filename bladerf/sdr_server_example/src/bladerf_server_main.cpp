@@ -80,7 +80,7 @@ std::vector<hop_parameters> tx_hops;
 std::vector<hop_parameters> rx_hops;
 atomic<uint32_t> num_tx_hops;
 atomic<uint32_t> num_rx_hops;
-atomic<uint16_t> hop_type(1);
+atomic<uint16_t> tx_hop_type(0);
 
 //-----------------------------------------------------------------------------
 void sig_handler(int signo)
@@ -102,6 +102,7 @@ inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector
     //uint32_t num_samples;
     int32_t blade_status;
     uint32_t hop_index;
+    uint8_t rffe_index = 0;
 	
     std::cout << "Transmit thread started." << std::endl;
 
@@ -111,11 +112,20 @@ inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector
         // main transmit loop
         while (transmit == true)
         {    
+
+            blade_status != bladerf_sync_tx(dev, (int16_t*)samples.data(), num_samples, NULL, blade_timeout_ms);
+
+            if (blade_status != 0)
+            {
+                std::cout << "Unable to send the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+            }
+
 			// select the hop type
-			switch (hop_type)
+			switch (tx_hop_type)
 			{
 			case 0:
-			   hop_index = 0;
+                hop_index = (uint32_t)((hop_index+1) % num_tx_hops);
+
 			   break;
 			case 1:
 			   hop_index = (uint32_t)(rand() % num_tx_hops);
@@ -124,16 +134,14 @@ inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector
 			   hop_index = 0;
 			   break;
 			}    
-			
-			blade_status = bladerf_set_frequency(dev, tx, tx_hops[hop_index].freq);
-			
-            blade_status != bladerf_sync_tx(dev, (int16_t*)samples.data(), num_samples, NULL, blade_timeout_ms);
 
-            if (blade_status != 0)
-            {
-                std::cout << "Unable to send the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-            }
-
+#if defined(WITH_FASTTUNE)
+            tx_hops[hop_index].qt_params.rffe_profile = rffe_index;
+            rffe_index = (rffe_index + 1) & 0x07;
+            blade_status = bladerf_schedule_retune(dev, tx, BLADERF_RETUNE_NOW, tx_hops[hop_index].freq, &tx_hops[hop_index].qt_params);
+#else
+            blade_status = bladerf_set_frequency(dev, tx, tx_hops[hop_index].freq);
+#endif	
         }
 
         // this wait will put the thread to sleep until transmit is true
@@ -218,7 +226,7 @@ int main(int argc, char** argv)
 #if defined(WITH_RPI)
     // define the gpio chip and pins
     const std::filesystem::path chip_path("/dev/gpiochip0");
-    const ::gpiod::line::offset rf_ctrl_pin = 16;
+    const ::gpiod::line::offset rf_ctrl_pin = 20;
 
     gpiod::line::value gpio_value;
 
@@ -231,13 +239,11 @@ int main(int argc, char** argv)
 
 	// allocate the gpio for use
     gpiod::line_request rf_gpio_line = gpio_request.do_request();
-
 #endif
-
 
     if (argc < 2)
     {
-        std::cout << "supply a file name for the IQ data." << std::endl;
+        std::cout << "supply a directory location the IQ data." << std::endl;
         std::cin.ignore();
         return -1;
     }
@@ -413,7 +419,7 @@ int main(int argc, char** argv)
         tx_thread  = std::thread(transmit_thread, dev, tx, std::ref(samples));
 
         // wait for a little to get the tx thread started
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
         std::cout << std::endl << "SDR Server Running..." << std::endl << std::endl;
 
@@ -446,7 +452,7 @@ int main(int argc, char** argv)
             // place the command messages into the command vector
             command.resize(command_messages[0].size() / sizeof(uint32_t));
             std::memcpy(command.data(), command_messages[0].data(), command_messages[0].size());
-            std::cout << "message command id: " << num2str(command[0], "0x%08X") << std::endl;
+            std::cout << "message command id: " << num2str(command[0], "0x%08X") << std::endl << std::endl;
                 
             // if there are more than one message in a multipart message try to parse the message
             if (num_messages.value() > 1)
@@ -535,7 +541,7 @@ int main(int argc, char** argv)
 
                 msg_result.resize(2);
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::CONFIG_TX);
-                msg_result[1] = blade_status;
+                msg_result[1] = (uint32_t)(blade_status == 0);
                 break;
 				
             case static_cast<uint32_t>(BLADE_MSG_ID::ENABLE_AMP):
@@ -546,7 +552,10 @@ int main(int argc, char** argv)
                 // set the amp gpio pin
                 gpio_value = (tmp_enable == true) ? gpio_on : gpio_off;
                 rf_gpio_line.set_value(rf_ctrl_pin, gpio_value);
+#else
+                std::cout << "Entered ENABLE_AMP state" << std::endl;
 #endif
+                std::this_thread::sleep_for(std::chrono::milliseconds(1100));
 
                 msg_result.resize(2);
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::ENABLE_AMP);
@@ -563,6 +572,8 @@ int main(int argc, char** argv)
                 ////set the amp gpio pin
                 // gpio_value = (transmit == true) ? gpio_on : gpio_off;
                 // rf_gpio_line.set_value(rf_ctrl_pin, gpio_value);
+//#else
+//                std::cout << "Entered ENABLE_TX state" << std::endl;
 // #endif
 
                 msg_result.resize(2);
@@ -639,9 +650,9 @@ int main(int argc, char** argv)
         recieve = false;
         tx_thread.join();
 
-
 #if defined(WITH_RPI)
         // close the gpio line
+        rf_gpio_line.set_value(rf_ctrl_pin, gpio_off);
         rf_gpio_line.release();
         gpio_chip.close();
 
@@ -650,7 +661,6 @@ int main(int argc, char** argv)
 
         std::cout << "Closing BladeRF SDR Server..." << std::endl;
 
-
         // disable the tx channel RF frontend
         blade_status = bladerf_enable_module(dev, BLADERF_TX, false);
 
@@ -658,6 +668,16 @@ int main(int argc, char** argv)
     catch (std::exception e)
     {
         std::cout << "error: " << e.what() << std::endl;
+
+#if defined(WITH_RPI)
+        // close the gpio line
+        rf_gpio_line.set_value(rf_ctrl_pin, gpio_off);
+        rf_gpio_line.release();
+        gpio_chip.close();
+
+        std::cout << "Closing GPIO..." << std::endl;
+#endif
+
     }
 
     bladerf_close(dev);

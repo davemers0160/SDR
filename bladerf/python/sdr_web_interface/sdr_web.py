@@ -20,7 +20,7 @@ from bladerf_sdr_client import bladerf_sdr_client
 # current module (__name__) as argument.
 app = Flask(__name__)
 
-global sdr_client, message_label, file_list
+global sdr_client, message_label, file_list, sdr_server_ip, sdr_server_port, tx_enable_state, amp_enable_state
 
 
 #------------------------------------------------------------------------------
@@ -47,156 +47,175 @@ def hello_world():
 #------------------------------------------------------------------------------
 @app.route('/test2', methods=['GET', 'POST'])
 def index():
-    global sdr_client, message_label, file_list
+    global sdr_client, message_label, file_list, sdr_server_ip, sdr_server_port, tx_enable_state, amp_enable_state
 
     iq_filename = None
-    tx_enable_state = False
+    # tx_enable_state = False
     # message_label = "Init"
-    amp_enable_state = False
+    # amp_enable_state = False
 
     # file_list = scan_directory_for_filetype("D:/Projects/data/RF", "sc16")
 
-
     if request.method == 'POST':
 
-        #------------------------------------------------------------------------------
+        # ------------------------------------------------------------------------------
         # TX enable button
-        if request.form["submit_button"] == "on":
-            # print("yes")
-            try:
-                tx_enable_state = False
+        item_list = request.form.getlist('tx_button')
+        if len(item_list) > 0:
 
-                result = sdr_client.enable_tx(tx_enable_state)
-                message_label = message_label + "Enable Tx: {}\n".format(result)
-                print("result: {}\n".format(result))
-            except NameError:
-                tx_enable_state = False
-                message_label = message_label + "Failed\n"
-        
-        elif request.form["submit_button"] == "off":
-            # print("no")
-            try:
-                tx_enable_state = True
+            if request.form["tx_button"] == "on":
+                # print("yes")
+                try:
+                    tx_enable_state = False
 
-                result = sdr_client.enable_tx(tx_enable_state)
-                message_label = message_label + "Disable Tx: {}\n".format(result)
-                print("result: {}\n".format(result))
-            except NameError:
-                tx_enable_state = False
-                message_label = message_label + "Failed\n"
+                    result = sdr_client.enable_tx(tx_enable_state)
+                    message_label = message_label + "Transmit Status: {}\n".format(result)
+                    print("result: {}\n".format(result))
+                except NameError:
+                    tx_enable_state = False
+                    message_label = message_label + "Failed to set transmit state\n"
+
+            elif request.form["tx_button"] == "off":
+                # print("no")
+                try:
+                    tx_enable_state = True
+
+                    result = sdr_client.enable_tx(tx_enable_state)
+                    message_label = message_label + "Transmit Status: {}\n".format(result)
+                    print("result: {}\n".format(result))
+                except NameError:
+                    tx_enable_state = False
+                    message_label = message_label + "Failed to set transmit state\n"
 
 
         # ------------------------------------------------------------------------------
-        # Amp enable button
-        if request.form["submit_button"] == "amp_on":
-            try:
-                amp_enable_state = False
+        # RF enable button
+        item_list = request.form.getlist("rf_button")
+        if len(item_list) > 0:
 
-                result = sdr_client.enable_amp(amp_enable_state)
-                message_label = message_label + "Enable Amp: {}\n".format(result)
-                print("result: {}\n".format(result))
+            if request.form["rf_button"] == "amp_on":
+                try:
+                    amp_enable_state = False
 
-            except NameError:
-                amp_enable_state = False
-                message_label = message_label + "Failed\n"
+                    result = sdr_client.enable_amp(amp_enable_state)
+                    message_label = message_label + "RF Section: {}\n".format(result)
+                    print("result: {}\n".format(result))
 
-        elif request.form["submit_button"] == "amp_off":
-            try:
-                amp_enable_state = True
+                except NameError:
+                    amp_enable_state = False
+                    message_label = message_label + "Failed to set RF state\n"
 
-                result = sdr_client.enable_amp(amp_enable_state)
-                message_label = message_label + "Disable Amp: {}\n".format(result)
-                print("result: {}\n".format(result))
+            elif request.form["rf_button"] == "amp_off":
+                try:
+                    amp_enable_state = True
 
-            except NameError:
-                amp_enable_state = False
-                message_label = message_label + "Failed\n"
+                    result = sdr_client.enable_amp(amp_enable_state)
+                    message_label = message_label + "RF Section: {}\n".format(result)
+                    print("result: {}\n".format(result))
 
-        #------------------------------------------------------------------------------
-        # Connect to the SDR server button
-        elif request.form["submit_button"] == "Connect":
-            tmp_msg = ""
-            file_list = []
-            try:
-                sdr_server_ip = request.form["sdr_server_ip"]
-                sdr_server_port = request.form["sdr_server_port"]
-                tmp_msg = "Connect\n"
+                except NameError:
+                    amp_enable_state = False
+                    message_label = message_label + "Failed to set RF state\n"
 
-                # create the client server
-                sdr_client = bladerf_sdr_client(sdr_server_ip, sdr_server_port)
-
-                # get the listing for the available IQ files
-                result, file_list = sdr_client.get_iq_files()
-
-            except NameError:
-                tmp_msg = "SDR client not initialized, connect to server first\n"
-
-            message_label = message_label + tmp_msg
 
         #------------------------------------------------------------------------------
-        # configure TX button
-        elif request.form["submit_button"] == "Config Tx":
-            sr_str = request.form["sample_rate"]
-            start_freq_str = request.form["start_freq"]
-            stop_freq_str = request.form["stop_freq"]
-            freq_step_str = request.form["freq_step"]
-            gain_str = request.form["gain"]
-            bw_str = request.form["bandwidth"]
+        # Submit button
+        item_list = request.form.getlist("submit_button")
+        if len(item_list) > 0:
+            # Connect to the SDR server button
+            if request.form["submit_button"] == "Connect":
+                tmp_msg = ""
+                file_list = []
+                try:
+                    sdr_server_ip = request.form["sdr_server_ip"]
+                    sdr_server_port = request.form["sdr_server_port"]
+                    tmp_msg = "Connect\n"
 
-            try:
-                sample_rate = np.uint32(int(sr_str))
-                start_freq = np.uint64(int(start_freq_str))
-                stop_freq = np.uint64(int(stop_freq_str))
-                freq_step = np.uint32(int(freq_step_str))
-                gain = np.uint32(int(gain_str))
-                bandwidth = np.uint32(int(bw_str))
+                    # create the client server
+                    sdr_client = bladerf_sdr_client(sdr_server_ip, sdr_server_port)
 
-                result = sdr_client.config_tx(start_freq, stop_freq, freq_step, sample_rate, bandwidth, gain)
-                print("result: {}\n".format(result))
-                message_label = message_label + "Config Tx: {}\n".format(result)
+                    # get the version
+                    server_version = sdr_client.get_version()
+                    tmp_msg += "server version: {}.{}.{}\n".format(server_version[0], server_version[1], server_version[2])
 
-            except:
-                sample_rate = np.uint32(20000000)
-                start_freq = np.uint64(1600000000)
-                stop_freq = np.uint64(160000000)
-                freq_step = np.uint32(2000000)
-                gain = np.uint32(65)
-                bandwidth = np.uint32(5000000)
-                message_label = message_label + "Check the entires, something isn't right\n"
+                    # get the listing for the available IQ files
+                    result, file_list = sdr_client.get_iq_files()
 
-        #------------------------------------------------------------------------------
-        # update the IQ file
-        elif request.form["submit_button"] == "IQ File":
-            tmp_msg = ""
+                except NameError:
+                    tmp_msg = "SDR client not initialized, connect to server first\n"
 
-            try:
-                iq_filename = request.form['file_dropdown']
-                result = sdr_client.load_iq_file(iq_filename)
-                tmp_msg = "IQ File: {}\n".format(result)
-                print("result: {}\n".format(result))
+                message_label = message_label + tmp_msg
 
-            except Exception as e:
-                # print(f"An error occurred: {e}")
-                tmp_msg = "{}\n".format(e)
-            except NameError:
-                tmp_msg = "SDR client not initialized, connect to server first\n"
+            #------------------------------------------------------------------------------
+            # configure TX button
+            elif request.form["submit_button"] == "Config Tx":
+                sr_str = request.form["sample_rate"]
+                start_freq_str = request.form["start_freq"]
+                stop_freq_str = request.form["stop_freq"]
+                freq_step_str = request.form["freq_step"]
+                gain_str = request.form["gain"]
+                bw_str = request.form["bandwidth"]
 
-            message_label = message_label + tmp_msg
+                try:
+                    sample_rate = np.uint32(int(sr_str))
+                    start_freq = np.uint64(int(start_freq_str))
+                    stop_freq = np.uint64(int(stop_freq_str))
+                    freq_step = np.uint32(int(freq_step_str))
+                    gain = np.uint32(int(gain_str))
+                    bandwidth = np.uint32(int(bw_str))
+
+                    result = sdr_client.config_tx(start_freq, stop_freq, freq_step, sample_rate, bandwidth, gain)
+                    print("result: {}\n".format(result))
+                    message_label = message_label + "Config Tx: {}\n".format(result)
+
+                except:
+                    sample_rate = np.uint32(20000000)
+                    start_freq = np.uint64(1600000000)
+                    stop_freq = np.uint64(160000000)
+                    freq_step = np.uint32(2000000)
+                    gain = np.uint32(65)
+                    bandwidth = np.uint32(5000000)
+                    message_label = message_label + "Check the entires, something isn't right\n"
+
+            #------------------------------------------------------------------------------
+            # update the IQ file
+            elif request.form["submit_button"] == "IQ File":
+                tmp_msg = ""
+
+                try:
+                    iq_filename = request.form['file_dropdown']
+                    result = sdr_client.load_iq_file(iq_filename)
+                    tmp_msg = "IQ File: {}\n".format(result)
+                    print("result: {}\n".format(result))
+
+                except Exception as e:
+                    # print(f"An error occurred: {e}")
+                    tmp_msg = "{}\n".format(e)
+                except NameError:
+                    tmp_msg = "SDR client not initialized, connect to server first\n"
+
+                message_label = message_label + tmp_msg
 
     # elif request.method == 'GET':
     #     bp = 3
 
     # return render_template('index.html')  # Ensure you have an index.html file
-    return render_template('index.html', options=file_list, tx_enable_state=tx_enable_state,
+    return render_template('index.html', sdr_server_ip=sdr_server_ip, sdr_server_port=sdr_server_port,
+                           options=file_list, tx_enable_state=tx_enable_state,
                            amp_enable_state=amp_enable_state, message_label=message_label) #, selected_value=text_data)
 
 
+#------------------------------------------------------------------------------
 # main driver function
 if __name__ == '__main__':
-    global message_label, file_list
+    # global message_label, file_list, sdr_server_ip, sdr_server_port
 
     message_label = "Init\n"
     file_list = []
+    sdr_server_ip = "localhost"
+    sdr_server_port = "25252"
+    tx_enable_state = False
+    amp_enable_state = False
 
     # run() method of Flask class runs the application
     # on the local development server.

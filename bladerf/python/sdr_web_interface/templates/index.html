@@ -28,11 +28,11 @@
         <div class="server_section">
             <form method="POST">
                 <label for="text_input">SDR Server IP Address: </label>
-                <input type="text" id="sdr_server_ip" name="sdr_server_ip" value="localhost">
+                <input type="text" id="sdr_server_ip" name="sdr_server_ip" value={{sdr_server_ip}}>
                 <BR><BR>
 
                 <label for="text_input">SDR Server Port: </label>
-                <input type="text" id="sdr_server_port" name="sdr_server_port" value="25252">
+                <input type="text" id="sdr_server_port" name="sdr_server_port" value={{sdr_server_port}}>
 
                 <BR><BR>
                 <input type="submit" class="submit_btn" name="submit_button" value="Connect">
@@ -92,19 +92,19 @@
                 {% if tx_enable_state %}
                     <!--<button type=submit class="btn btn-default" name="lamp" value="on">-->
                     <!--<input type="submit" name="submit_button" value="Enable TX" style="background-color: green;">-->
-                    <button type="submit" class="enable_btn" name="submit_button" value="on" style="background-color: green;">Disable Tx</button>
+                    <button type="submit" class="enable_btn" name="tx_button" value="on" style="background-color: green;">Disable Tx</button>
 
                 {% else %}
                     <!--<input type="submit" name="submit_button" value="Disable TX" style="background-color: red;">-->
-                    <button type="submit" class="enable_btn" name="submit_button" value="off" style="background-color: red;">Enable Tx</button>
+                    <button type="submit" class="enable_btn" name="tx_button" value="off" style="background-color: red;">Enable Tx</button>
                 {% endif %}
                 <!--<input type="submit" id="myButton" name="submit_button" value="Enable TX" style="background-color: red;" onclick="change_color()">-->
                 <!--<button id="myButton" style="background-color: lightblue;" onclick="changeColor()">Click me</button>-->
 
                 {% if amp_enable_state %}
-                    <button type="submit" class="enable_btn" name="submit_button" value="amp_on" style="background-color: green;">Disable Amp</button>
+                    <button type="submit" class="enable_btn" name="rf_button" value="amp_on" style="background-color: green;">Disable RF Section</button>
                 {% else %}
-                    <button type="submit" class="enable_btn" name="submit_button" value="amp_off" style="background-color: red;">Enable Amp</button>
+                    <button type="submit" class="enable_btn" name="rf_button" value="amp_off" style="background-color: red;">Enable RF Section</button>
                 {% endif %}
             </form>
 

@@ -128,10 +128,10 @@ class bladerf_sdr_client:
     #------------------------------------------------------------------------------
     def config_tx(self, start_frequency: np.uint64, stop_frequency: np.uint64, frequency_step: np.int32, sample_rate: np.uint32, bw: np.uint32, gain: np.int32):
         
-        stf_32M = (start_frequency >> 32).astype(np.uint32)
-        stf_32L = (start_frequency & 0x00FFFFFFFF).astype(np.uint32)
-        spf_32M = (stop_frequency >> 32).astype(np.uint32)
-        spf_32L = (stop_frequency & 0x00FFFFFFFF).astype(np.uint32)        
+        stf_32M = (start_frequency >> np.uint64(32)).astype(np.uint32)
+        stf_32L = (start_frequency & np.uint64(0x00FFFFFFFF)).astype(np.uint32)
+        spf_32M = (stop_frequency >> np.uint64(32)).astype(np.uint32)
+        spf_32L = (stop_frequency & np.uint64(0x00FFFFFFFF)).astype(np.uint32)
         
         # create the command message and convert to bytearray
         command = np.array([self.CONFIG_TX, stf_32M, stf_32L, spf_32M, spf_32L, frequency_step, sample_rate, bw, gain]).astype(np.uint32)
