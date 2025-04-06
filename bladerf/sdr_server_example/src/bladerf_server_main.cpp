@@ -351,7 +351,7 @@ int main(int argc, char** argv)
             std::cout << "Failed to configure RX sync interface - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
         }
 
-        blade_status = bladerf_set_gain_mode(dev, rx, BLADERF_GAIN_MGC);
+        //blade_status = bladerf_set_gain_mode(dev, rx, BLADERF_GAIN_MGC);
 
         // config the tx side
         blade_status = config_blade_channel(dev, tx, tx_hops[0].freq, tx_sample_rate, tx_bw, tx_gain);
