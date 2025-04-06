@@ -137,7 +137,7 @@ inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector
 			   break;
 			}
 
-            std::cout << "hop_index: " << hop_index << std::endl;
+            //std::cout << "hop_index: " << hop_index << std::endl;
 
 #if defined(WITH_FASTTUNE)
             tx_hops[hop_index].qt_params.rffe_profile = rffe_index;
