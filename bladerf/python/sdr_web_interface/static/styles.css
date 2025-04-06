@@ -127,6 +127,12 @@ p {
     margin-right:10px;
 }
 
+.drop_down {
+    min-width: 450px;
+    max-width: 900px;
+    padding: 2px 4px;
+}
+
 a {
     color: #007bff;
     text-decoration: none;

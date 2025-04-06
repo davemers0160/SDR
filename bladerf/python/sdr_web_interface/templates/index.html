@@ -75,7 +75,7 @@
         <div class="iq_file_section">
             <form method="POST">
                 <label for="file_dropdown">Select IQ File: </label><BR>
-                <select name="file_dropdown" id="file_dropdown">
+                <select name="file_dropdown" id="file_dropdown" class="drop_down">
                     {% for option in options %}
                     <option value="{{ option }}" {% if option == selected_value %}selected{% endif %}>{{ option }}</option>
                     {% endfor %}
