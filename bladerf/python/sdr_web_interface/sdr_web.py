@@ -47,7 +47,8 @@ def hello_world():
 #------------------------------------------------------------------------------
 @app.route('/test2', methods=['GET', 'POST'])
 def index():
-    global sdr_client, message_label, file_list, sdr_server_ip, sdr_server_port, tx_enable_state, amp_enable_state
+    global sdr_client, message_label, file_list, sdr_server_ip, sdr_server_port, tx_enable_state, amp_enable_state, \
+        sr_str, start_freq_str, stop_freq_str, freq_step_str, gain_str, bw_str
 
     iq_filename = None
     # tx_enable_state = False
@@ -201,7 +202,8 @@ def index():
 
     # return render_template('index.html')  # Ensure you have an index.html file
     return render_template('index.html', sdr_server_ip=sdr_server_ip, sdr_server_port=sdr_server_port,
-                           options=file_list, tx_enable_state=tx_enable_state,
+                           options=file_list, tx_enable_state=tx_enable_state, sr_str=sr_str, start_freq_str=start_freq_str,
+                           stop_freq_str=stop_freq_str, freq_step_str=freq_step_str, gain_str=gain_str, bw_str=bw_str,
                            amp_enable_state=amp_enable_state, message_label=message_label) #, selected_value=text_data)
 
 
@@ -212,10 +214,16 @@ if __name__ == '__main__':
 
     message_label = "Init\n"
     file_list = []
-    sdr_server_ip = "localhost"
+    sdr_server_ip = "raspberrypi"
     sdr_server_port = "25252"
     tx_enable_state = False
     amp_enable_state = False
+    sr_str = "40000000"
+    start_freq_str = "2600000000"
+    stop_freq_str = "2600000000"
+    freq_step_str = "2000000"
+    gain_str = "65"
+    bw_str = "10000000"
 
     # run() method of Flask class runs the application
     # on the local development server.

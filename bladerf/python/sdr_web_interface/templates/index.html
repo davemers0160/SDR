@@ -44,27 +44,27 @@
             <form method="POST">
 
                 <label for="text_input">Samplerate (MHz): </label>
-                <input type="text" id="sample_rate" name="sample_rate" value="20000000">
+                <input type="text" id="sample_rate" name="sample_rate" value={{sr_str}}>
                 <BR><BR>
 
                 <label for="text_input">Start Frequency (MHz): </label>
-                <input type="text" id="start_freq" name="start_freq" value="1600000000">
+                <input type="text" id="start_freq" name="start_freq" value={{start_freq_str}}>
                 <BR><BR>
 
                 <label for="text_input">Stop Frequency (MHz): </label>
-                <input type="text" id="stop_freq" name="stop_freq" value="1600000000">
+                <input type="text" id="stop_freq" name="stop_freq" value={{stop_freq_str}}>
                 <BR><BR>
 
                 <label for="text_input">Frequency Step (MHz): </label>
-                <input type="text" id="freq_step" name="freq_step" value="2000000">
+                <input type="text" id="freq_step" name="freq_step" value={{freq_step_str}}>
                 <BR><BR>
 
                 <label for="text_input">Gain: </label>
-                <input type="text" id="gain" name="gain" value="65">
+                <input type="text" id="gain" name="gain" value={{gain_str}}>
                 <BR><BR>
 
                 <label for="text_input">Bandwidth (MHz): </label>
-                <input type="text" id="bandwidth" name="bandwidth" value="5000000">
+                <input type="text" id="bandwidth" name="bandwidth" value={{bw_str}}>
 
                 <BR><BR>
                 <input type="submit" class="submit_btn" name="submit_button" value="Config Tx">
