@@ -85,7 +85,7 @@ atomic<uint16_t> tx_hop_type(0);
 //-----------------------------------------------------------------------------
 void sig_handler(int signo)
 {
-    if (signo == SIGINT) 
+    if ((signo == SIGINT) | (signo = SIGTERM))
     {
         fprintf(stderr, "received SIGINT\n");
         is_running = false;
@@ -94,14 +94,15 @@ void sig_handler(int signo)
         transmit = false;
         recieve = false;
     }
+
 }   // end of sig_handler
 
 //-----------------------------------------------------------------------------
 inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector<std::complex<int16_t>>& samples)
 {
     //uint32_t num_samples;
-    int32_t blade_status;
-    uint32_t hop_index;
+    int32_t blade_status = 0;
+    uint32_t hop_index = 0;
     uint8_t rffe_index = 0;
 	
     std::cout << "Transmit thread started." << std::endl;
@@ -113,7 +114,7 @@ inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector
         while (transmit == true)
         {    
 
-            blade_status != bladerf_sync_tx(dev, (int16_t*)samples.data(), num_samples, NULL, blade_timeout_ms);
+            blade_status = bladerf_sync_tx(dev, (int16_t*)samples.data(), num_samples, NULL, blade_timeout_ms);
 
             if (blade_status != 0)
             {
@@ -296,7 +297,9 @@ int main(int argc, char** argv)
 
     // the number of IQ samples is the number of samples divided by 2
     num_samples = samples.size();
-    double sample_duration = (num_samples) / (double)tx_sample_rate;
+    //double sample_duration = (num_samples) / (double)tx_sample_rate;
+    std::cout << "num_samples: " << num_samples << std::endl;
+
 
     //-----------------------------------------------------------------------------
     try 
@@ -620,6 +623,7 @@ int main(int argc, char** argv)
 
                     samples = read_iq_data<int16_t>(iq_file_path + iq_filename);
                     num_samples = samples.size();
+                    std::cout << "num_samples: " << num_samples << std::endl;
                 }
 
                 // return transmit to its former status
@@ -660,13 +664,14 @@ int main(int argc, char** argv)
 #endif
 
         // close the server
-        std::cout << std::endl << "Closing the Server..." << std::endl;
+        std::cout << std::endl << "Closing the SDR Server..." << std::endl;
         close_server(bladerf_context, bladerf_socket);
 
-        std::cout << "Closing BladeRF SDR Server..." << std::endl;
 
         // disable the tx channel RF frontend
+        std::cout << "Disabling BladeRF frontend..." << std::endl;
         blade_status = bladerf_enable_module(dev, BLADERF_TX, false);
+        blade_status = bladerf_enable_module(dev, BLADERF_RX, false);
 
     }
     catch (std::exception e)
@@ -684,6 +689,7 @@ int main(int argc, char** argv)
 
     }
 
+    std::cout << "Closing BladeRF..." << std::endl;
     bladerf_close(dev);
 
     std::cout << "Press Enter to close..." << std::endl;
