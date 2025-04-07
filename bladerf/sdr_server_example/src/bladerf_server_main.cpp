@@ -123,32 +123,35 @@ inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector
                 std::cout << "Unable to send the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
             }
 
-			// select the hop type
-			switch (tx_hop_type)
+            if(num_tx_hops > 0)
 			{
-			case 0:
-               hop_index = (uint32_t)((hop_index+1) % num_tx_hops);
-			   break;
-			case 1:
-			   hop_index = (uint32_t)(rand() % num_tx_hops);
-			   break;
-			default:
-			   hop_index = 0;
-			   break;
-			}
+                // select the hop type
+			    switch (tx_hop_type)
+			    {
+			    case 0:
+                   hop_index = (uint32_t)((hop_index+1) % num_tx_hops);
+			       break;
+			    case 1:
+			       hop_index = (uint32_t)(rand() % num_tx_hops);
+			       break;
+			    default:
+			       hop_index = 0;
+			       break;
+			    }
 
-            //std::cout << "hop_index: " << hop_index << std::endl;
+                //std::cout << "hop_index: " << hop_index << std::endl;
 
 #if defined(WITH_FASTTUNE)
-            tx_hops[hop_index].qt_params.rffe_profile = rffe_index;
-            rffe_index = (rffe_index + 1) & 0x07;
-            blade_status = bladerf_schedule_retune(dev, tx, BLADERF_RETUNE_NOW, tx_hops[hop_index].freq, &tx_hops[hop_index].qt_params);
+                tx_hops[hop_index].qt_params.rffe_profile = rffe_index;
+                rffe_index = (rffe_index + 1) & 0x07;
+                blade_status = bladerf_schedule_retune(dev, tx, BLADERF_RETUNE_NOW, tx_hops[hop_index].freq, &tx_hops[hop_index].qt_params);
 #else
-            blade_status = bladerf_set_frequency(dev, tx, tx_hops[hop_index].freq);
+                blade_status = bladerf_set_frequency(dev, tx, tx_hops[hop_index].freq);
 #endif	
-            if (blade_status != 0)
-            {
-                std::cout << "Unable to set the center frequency: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                if (blade_status != 0)
+                {
+                    std::cout << "Unable to set the center frequency: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                }
             }
         }
 
@@ -340,8 +343,8 @@ int main(int argc, char** argv)
 
         tx_hops = get_hop_parameters(dev, tx, tx_start_freq, tx_stop_freq, tx_step);
         rx_hops = get_hop_parameters(dev, rx, rx_start_freq, rx_stop_freq, rx_step);
-        num_tx_hops = tx_hops.size();
-        num_rx_hops = rx_hops.size();
+        num_tx_hops = std::max(0U, (uint32_t)tx_hops.size());
+        num_rx_hops = std::max(0U, (uint32_t)rx_hops.size());
 
         std::cout << "number of TX hops: " << num_tx_hops << std::endl << std::endl;
         std::cout << "number of RX hops: " << num_rx_hops << std::endl << std::endl;
@@ -431,6 +434,10 @@ int main(int argc, char** argv)
         std::cout << "  bw:          " << tx_bw << std::endl;
         std::cout << "  tx1_gain:    " << tx_gain << std::endl;
         std::cout << "------------------------------------------------------------------" << std::endl << std::endl;
+
+        // use this to flush out some samples that might be hung
+        std::vector<int16_t> tmp_samples(buffer_size*4);
+        blade_status = bladerf_sync_tx(dev, (int16_t*)tmp_samples.data(), buffer_size*2, NULL, blade_timeout_ms);
 
         //// set initial frequency
         //switch (hop_type)
@@ -579,7 +586,7 @@ int main(int argc, char** argv)
 
                 //generate_range(tx_start_freq, tx_stop_freq, (double)tx_step, tx_hop_sequence);
                 tx_hops = get_hop_parameters(dev, tx, tx_start_freq, tx_stop_freq, tx_step);
-                num_tx_hops = tx_hops.size();
+                num_tx_hops = std::max(0U, (uint32_t)tx_hops.size());
 
                 //blade_status = config_blade_channel(dev, tx, tx_hops[0].freq, tx_sample_rate, tx_bw, tx_gain);
                 blade_status = bladerf_set_gain(dev, tx, tx_gain);
