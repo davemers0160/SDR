@@ -219,11 +219,11 @@ if __name__ == '__main__':
     tx_enable_state = False
     amp_enable_state = False
     sr_str = "40000000"
-    start_freq_str = "2600000000"
-    stop_freq_str = "2600000000"
+    start_freq_str = "2000000000"
+    stop_freq_str = "2000000000"
     freq_step_str = "2000000"
     gain_str = "65"
-    bw_str = "10000000"
+    bw_str = "40000000"
 
     # run() method of Flask class runs the application
     # on the local development server.

@@ -81,7 +81,7 @@ std::vector<hop_parameters> tx_hops;
 std::vector<hop_parameters> rx_hops;
 atomic<uint32_t> num_tx_hops;
 atomic<uint32_t> num_rx_hops;
-atomic<uint16_t> tx_hop_type(0);
+atomic<uint16_t> tx_hop_type(1);
 
 //-----------------------------------------------------------------------------
 void sig_handler(int signo)
@@ -123,7 +123,7 @@ inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector
                 std::cout << "Unable to send the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
             }
 
-            if(num_tx_hops > 0)
+            if(num_tx_hops > 1)
 			{
                 // select the hop type
 			    switch (tx_hop_type)
@@ -152,6 +152,8 @@ inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector
                 {
                     std::cout << "Unable to set the center frequency: " << std::string(bladerf_strerror(blade_status)) << std::endl;
                 }
+                std::this_thread::sleep_for(std::chrono::microseconds(10));
+
             }
         }
 
@@ -195,11 +197,11 @@ int main(int argc, char** argv)
     // TX parameters
     bladerf_sample_rate tx_sample_rate = 40000000;
     bladerf_channel tx = BLADERF_CHANNEL_TX(0);
-    bladerf_bandwidth tx_bw = 800000;
-    bladerf_gain tx_gain = 60;
-    bladerf_frequency tx_start_freq = 1500000000;
-    bladerf_frequency tx_stop_freq = 1500000000;
-    int64_t tx_step = 30000000;
+    bladerf_bandwidth tx_bw = 10000000;
+    bladerf_gain tx_gain = 65;
+    bladerf_frequency tx_start_freq = 2000000000;
+    bladerf_frequency tx_stop_freq = 2000000000;
+    int64_t tx_step = 2000000;
     //bool tx_enable = true;
     //std::vector<bladerf_frequency> tx_hop_sequence;
     std::thread tx_thread;
@@ -207,11 +209,11 @@ int main(int argc, char** argv)
     // RX parameters
     bladerf_sample_rate rx_sample_rate = 40000000;
     bladerf_channel rx = BLADERF_CHANNEL_RX(0);
-    bladerf_bandwidth rx_bw = 800000;
-    bladerf_gain rx_gain = 60;
-    bladerf_frequency rx_start_freq = 1500000000;
-    bladerf_frequency rx_stop_freq = 1500000000;
-    int64_t rx_step = 30000000;
+    bladerf_bandwidth rx_bw = 10000000;
+    bladerf_gain rx_gain = 65;
+    bladerf_frequency rx_start_freq = 2000000000;
+    bladerf_frequency rx_stop_freq = 2000000000;
+    int64_t rx_step = 2000000;
     //bool rx_enable = false;
     //std::vector<bladerf_frequency> rx_hop_sequence;
     std::thread rx_thread;
@@ -380,12 +382,15 @@ int main(int argc, char** argv)
 
         // the gain must be set after the module has been enabled
         blade_status = bladerf_set_gain_mode(dev, tx, BLADERF_GAIN_MANUAL);
-        blade_status = bladerf_set_gain(dev, tx, tx_gain);
-        blade_status = bladerf_get_gain(dev, tx, &tx_gain);
+        blade_status |= bladerf_set_gain(dev, tx, tx_gain);
+        blade_status |= bladerf_get_gain(dev, tx, &tx_gain);
         if (blade_status != 0)
         {
             std::cout << "Error setting TX gain - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
         }
+
+        blade_status = bladerf_set_bandwidth(dev, tx, 20000000, NULL);
+        blade_status = bladerf_set_bandwidth(dev, tx, tx_bw, &tx_bw);
 
         // config the rx side
         //blade_status = config_blade_channel(dev, rx, rx_hops[0].freq, rx_sample_rate, rx_bw, rx_gain);
@@ -696,6 +701,7 @@ int main(int argc, char** argv)
                     iq_filename.clear();
                     iq_filename.resize(message_data.size());
                     std::copy(message_data.begin(), message_data.end(), iq_filename.begin());
+                    std::cout << "iq_filename: " << iq_file_path + iq_filename << std::endl;
 
                     samples = read_iq_data<int16_t>(iq_file_path + iq_filename);
                     num_tx_samples = samples.size();
