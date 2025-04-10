@@ -186,7 +186,8 @@ def index():
                 try:
                     iq_filename = request.form['file_dropdown']
                     result = sdr_client.load_iq_file(iq_filename)
-                    tmp_msg = "IQ File: {}\n".format(result)
+                    tmp_msg = "Loading IQ File: {}\n".format(iq_filename)
+                    tmp_msg += "Result: {}\n".format(result)
                     print("result: {}\n".format(result))
 
                 except Exception as e:
