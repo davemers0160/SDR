@@ -158,24 +158,24 @@ def index():
                 bw_str = request.form["bandwidth"]
 
                 try:
-                    sample_rate = np.uint32(int(sr_str))
-                    start_freq = np.uint64(int(start_freq_str))
-                    stop_freq = np.uint64(int(stop_freq_str))
-                    freq_step = np.uint32(int(freq_step_str))
+                    sample_rate = np.uint32(float(sr_str)*1e6)
+                    start_freq = np.uint64(float(start_freq_str)*1e6)
+                    stop_freq = np.uint64(float(stop_freq_str)*1e6)
+                    freq_step = np.uint32(float(freq_step_str)*1e6)
+                    bandwidth = np.uint32(float(bw_str)*1e6)
                     gain = np.uint32(int(gain_str))
-                    bandwidth = np.uint32(int(bw_str))
 
                     result = sdr_client.config_tx(start_freq, stop_freq, freq_step, sample_rate, bandwidth, gain)
                     print("result: {}\n".format(result))
                     message_label = message_label + "Config Tx: {}\n".format(result)
 
                 except:
-                    sample_rate = np.uint32(20000000)
-                    start_freq = np.uint64(1600000000)
-                    stop_freq = np.uint64(160000000)
+                    sample_rate = np.uint32(40000000)
+                    start_freq = np.uint64(2000000000)
+                    stop_freq = np.uint64(200000000)
                     freq_step = np.uint32(2000000)
-                    gain = np.uint32(65)
-                    bandwidth = np.uint32(5000000)
+                    gain = np.uint32(66)
+                    bandwidth = np.uint32(2000000)
                     message_label = message_label + "Check the entires, something isn't right\n"
 
             #------------------------------------------------------------------------------
@@ -215,16 +215,16 @@ if __name__ == '__main__':
 
     message_label = "Init\n"
     file_list = []
-    sdr_server_ip = "raspberrypi"
+    sdr_server_ip = "172.26.1.200"
     sdr_server_port = "25252"
     tx_enable_state = False
     amp_enable_state = False
-    sr_str = "40000000"
-    start_freq_str = "2000000000"
-    stop_freq_str = "2000000000"
-    freq_step_str = "2000000"
-    gain_str = "65"
-    bw_str = "40000000"
+    sr_str = "40"
+    start_freq_str = "2000"
+    stop_freq_str = "2000"
+    freq_step_str = "2"
+    gain_str = "66"
+    bw_str = "40"
 
     # run() method of Flask class runs the application
     # on the local development server.

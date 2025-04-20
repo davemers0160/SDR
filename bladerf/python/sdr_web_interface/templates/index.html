@@ -28,11 +28,11 @@
         <div class="server_section">
             <form method="POST">
                 <label for="text_input">SDR Server IP Address: </label>
-                <input type="text" id="sdr_server_ip" name="sdr_server_ip" value={{sdr_server_ip}}>
+                <input type="text" id="sdr_server_ip" name="sdr_server_ip" style="text-align: center; width: 110px" value={{sdr_server_ip}}>
                 <BR><BR>
 
                 <label for="text_input">SDR Server Port: </label>
-                <input type="text" id="sdr_server_port" name="sdr_server_port" value={{sdr_server_port}}>
+                <input type="text" id="sdr_server_port" name="sdr_server_port" style="text-align: center; width: 110px" value={{sdr_server_port}}>
 
                 <BR><BR>
                 <input type="submit" class="submit_btn" name="submit_button" value="Connect">
@@ -44,29 +44,29 @@
             <form method="POST">
 
                 <label for="text_input">Samplerate (MHz): </label>
-                <input type="text" id="sample_rate" name="sample_rate" value={{sr_str}}>
+                <input type="number" id="sample_rate" name="sample_rate" value={{sr_str}} required>
                 <BR><BR>
 
                 <label for="text_input">Start Frequency (MHz): </label>
-                <input type="text" id="start_freq" name="start_freq" value={{start_freq_str}}>
+                <input type="number" id="start_freq" name="start_freq" value={{start_freq_str}} required>
                 <BR><BR>
 
                 <label for="text_input">Stop Frequency (MHz): </label>
-                <input type="text" id="stop_freq" name="stop_freq" value={{stop_freq_str}}>
+                <input type="number" id="stop_freq" name="stop_freq" value={{stop_freq_str}} required>
                 <BR><BR>
 
                 <label for="text_input">Frequency Step (MHz): </label>
-                <input type="text" id="freq_step" name="freq_step" value={{freq_step_str}}>
-                <BR><BR>
-
-                <label for="text_input">Gain: </label>
-                <input type="text" id="gain" name="gain" value={{gain_str}}>
+                <input type="number" id="freq_step" name="freq_step" value={{freq_step_str}} required>
                 <BR><BR>
 
                 <label for="text_input">Bandwidth (MHz): </label>
-                <input type="text" id="bandwidth" name="bandwidth" value={{bw_str}}>
-
+                <input type="number" id="bandwidth" name="bandwidth" value={{bw_str}} required>
                 <BR><BR>
+
+                <label for="text_input">Gain: </label>
+                <input type="number" id="gain" name="gain" value={{gain_str}} required>
+                <BR><BR>
+
                 <input type="submit" class="submit_btn" name="submit_button" value="Config Tx">
 
             </form>
