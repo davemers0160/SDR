@@ -15,11 +15,12 @@
     }
     </script>
 <head>
-    <title>Flask Form Example</title>
+    <title>SDR Server Interface</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-
+    {{ turbo() }}
 </head>
 <body>
+
 <section class="layout">
 
     <div class="colSpan2 row1"><h1>SDR Server Interface</h1></div>
@@ -112,7 +113,8 @@
     </div>
 
     <div class="col2 row2">
-        <h3>Message:</h3>
+        {% include "server_status.html" %}
+        <h4>Message:</h4>
         <div class="message_section">
             <pre>{{ message_label }}</pre>
         </div>

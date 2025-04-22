@@ -1,11 +1,15 @@
 
 import os
 import sys
+import threading
+import random
+import time
 
 # Importing flask module in the project is mandatory
 # An object of Flask class is our WSGI application.
 from flask import Flask
 from flask import render_template, url_for, request, redirect
+from turbo_flask import Turbo
 
 import numpy as np
 import numpy.typing as npt
@@ -19,9 +23,10 @@ from bladerf_sdr_client import bladerf_sdr_client
 # Flask constructor takes the name of
 # current module (__name__) as argument.
 app = Flask(__name__)
+turbo = Turbo(app)
 
-global sdr_client, message_label, file_list, sdr_server_ip, sdr_server_port, tx_enable_state, amp_enable_state
 
+global sdr_client, sdr_publisher, message_label, file_list, sdr_server_ip, sdr_server_port, tx_enable_state, amp_enable_state
 
 #------------------------------------------------------------------------------
 # scan directory for file
@@ -48,7 +53,7 @@ def hello_world():
 @app.route('/test2', methods=['GET', 'POST'])
 def index():
     global sdr_client, message_label, file_list, sdr_server_ip, sdr_server_port, tx_enable_state, amp_enable_state, \
-        sr_str, start_freq_str, stop_freq_str, freq_step_str, gain_str, bw_str
+        sr_str, start_freq_str, stop_freq_str, freq_step_str, gain_str, bw_str, sdr_publisher
 
     iq_filename = None
     # tx_enable_state = False
@@ -130,10 +135,14 @@ def index():
                 try:
                     sdr_server_ip = request.form["sdr_server_ip"]
                     sdr_server_port = request.form["sdr_server_port"]
+                    sdr_publisher_port = "25254"
                     tmp_msg = "Connect\n"
 
                     # create the client server
                     sdr_client = bladerf_sdr_client(sdr_server_ip, sdr_server_port)
+                    sdr_publisher = sdr_client.context.socket(zmq.SUB)
+                    sdr_publisher.connect("tcp://" + sdr_server_ip + ":" + sdr_publisher_port)
+                    sdr_publisher.setsockopt_string(zmq.SUBSCRIBE, "")
 
                     # get the version
                     server_version = sdr_client.get_version()
@@ -190,11 +199,12 @@ def index():
                     tmp_msg += "Result: {}\n".format(result)
                     print("result: {}\n".format(result))
 
+                except NameError:
+                    tmp_msg = "SDR client not initialized, connect to server first\n"
+
                 except Exception as e:
                     # print(f"An error occurred: {e}")
                     tmp_msg = "{}\n".format(e)
-                except NameError:
-                    tmp_msg = "SDR client not initialized, connect to server first\n"
 
                 message_label = message_label + tmp_msg
 
@@ -207,6 +217,38 @@ def index():
                            stop_freq_str=stop_freq_str, freq_step_str=freq_step_str, gain_str=gain_str, bw_str=bw_str,
                            amp_enable_state=amp_enable_state, message_label=message_label) #, selected_value=text_data)
 
+
+@app.context_processor
+def inject_load():
+    global sdr_publisher, server_status
+    # time.sleep(5)
+    try:
+        server_status = sdr_publisher.recv_string()
+    except NameError:
+        server_status = ""
+
+    return {'server_status': server_status }
+
+@app.before_request
+def before_first_request():
+    app.before_request_funcs[None].remove(before_first_request)
+    threading.Thread(target=update_status).start()
+
+def update_status():
+    global sdr_publisher, server_status
+    with app.app_context():
+        while True:
+            tmp_status = ""
+            try:
+                time.sleep(5)
+                # tmp_status = sdr_publisher.recv_string()
+                turbo.push(turbo.replace(render_template('server_status.html', server_status=server_status), 'status'))
+
+            except NameError:
+                tmp_status = ""
+
+            # finally:
+            #     turbo.push(turbo.replace(render_template('server_status.html', server_status=tmp_status), 'status'))
 
 #------------------------------------------------------------------------------
 # main driver function
@@ -225,6 +267,10 @@ if __name__ == '__main__':
     freq_step_str = "2"
     gain_str = "66"
     bw_str = "40"
+    server_status = ""
+    # th = threading.Thread(target=update_status)
+    # th.daemon = True
+    # th.start()
 
     # run() method of Flask class runs the application
     # on the local development server.
