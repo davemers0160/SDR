@@ -19,6 +19,7 @@
 
 const std::string BLADERF_IP_ADDRESS = "*";
 const std::string BLADERF_PORT = "25252";
+const std::string BLADERF_STATUS_PORT = "25254";
 
 const uint32_t MAJOR_REVISION = 1;
 const uint32_t MINOR_REVISION = 0;

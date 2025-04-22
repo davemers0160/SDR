@@ -99,6 +99,28 @@ void sig_handler(int signo)
 }   // end of sig_handler
 
 //-----------------------------------------------------------------------------
+inline void publisher_thread(zmq::context_t& context)
+{
+    uint8_t index = 0;
+    zmq::socket_t blade_pub_socket = create_server_connection(BLADERF_IP_ADDRESS, BLADERF_STATUS_PORT, context, static_cast<int32_t>(zmq::socket_type::pub));
+    
+    std::cout << std::endl << "Starting Publisher Thread!" << std::endl << std::endl;
+
+    while(is_running == true)
+    {
+        std::string message = num2str(++index, "0x%02X");
+        zmq::message_t zmq_message(message.size());
+        memcpy(zmq_message.data(), message.c_str(), message.size());
+        blade_pub_socket.send(zmq_message, zmq::send_flags::none);
+        
+        std::cout << "Sent: " << message << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+    }
+
+    blade_pub_socket.close();
+}
+
+//-----------------------------------------------------------------------------
 inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector<std::complex<int16_t>>& samples)
 {
     int32_t blade_status = 0;
@@ -476,7 +498,10 @@ int main(int argc, char** argv)
         recieve_thread_running = true;
 
         // start the tx thread
-        tx_thread  = std::thread(transmit_thread, dev, tx, std::ref(samples));
+        tx_thread = std::thread(transmit_thread, dev, tx, std::ref(samples));
+
+        // publisher thread
+        std::thread pub_thread = std::thread(publisher_thread, std::ref(bladerf_context));
 
         // wait for a little to get the tx thread started
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -735,6 +760,7 @@ int main(int argc, char** argv)
         transmit = false;
         recieve = false;
         tx_thread.join();
+        pub_thread.join();
 
 #if defined(WITH_RPI)
         // close the gpio line
@@ -748,7 +774,6 @@ int main(int argc, char** argv)
         // close the server
         std::cout << std::endl << "Closing the SDR Server..." << std::endl;
         close_server(bladerf_context, bladerf_socket);
-
 
         // disable the tx channel RF frontend
         std::cout << "Disabling BladeRF frontend..." << std::endl;
