@@ -50,7 +50,7 @@ def hello_world():
     return 'Hello World'
 
 #------------------------------------------------------------------------------
-@app.route('/test2', methods=['GET', 'POST'])
+@app.route('/', methods=['GET', 'POST'])
 def index():
     global sdr_client, message_label, file_list, sdr_server_ip, sdr_server_port, tx_enable_state, amp_enable_state, \
         sr_str, start_freq_str, stop_freq_str, freq_step_str, gain_str, bw_str, sdr_publisher
@@ -218,37 +218,37 @@ def index():
                            amp_enable_state=amp_enable_state, message_label=message_label) #, selected_value=text_data)
 
 
-@app.context_processor
-def inject_load():
-    global sdr_publisher, server_status
-    # time.sleep(5)
-    try:
-        server_status = sdr_publisher.recv_string()
-    except NameError:
-        server_status = ""
+# @app.context_processor
+# def inject_load():
+#     global sdr_publisher, server_status
+#     time.sleep(1)
+#     try:
+#         server_status = sdr_publisher.recv_string()
+#     except NameError:
+#         server_status = ""
+#
+#     return {'server_status': server_status }
 
-    return {'server_status': server_status }
+# @app.before_request
+# def before_first_request():
+#     app.before_request_funcs[None].remove(before_first_request)
+#     threading.Thread(target=update_status).start()
 
-@app.before_request
-def before_first_request():
-    app.before_request_funcs[None].remove(before_first_request)
-    threading.Thread(target=update_status).start()
-
-def update_status():
-    global sdr_publisher, server_status
-    with app.app_context():
-        while True:
-            tmp_status = ""
-            try:
-                time.sleep(5)
-                # tmp_status = sdr_publisher.recv_string()
-                turbo.push(turbo.replace(render_template('server_status.html', server_status=server_status), 'status'))
-
-            except NameError:
-                tmp_status = ""
-
-            # finally:
-            #     turbo.push(turbo.replace(render_template('server_status.html', server_status=tmp_status), 'status'))
+# def update_status():
+#     global sdr_publisher, server_status
+#     with app.app_context():
+#         while True:
+#             tmp_status = ""
+#             try:
+#                 time.sleep(5)
+#                 # tmp_status = sdr_publisher.recv_string()
+#                 res = turbo.push(turbo.replace(render_template('server_status.html', server_status=server_status), 'status'))
+#
+#             except NameError:
+#                 tmp_status = ""
+#
+#             # finally:
+#             #     turbo.push(turbo.replace(render_template('server_status.html', server_status=tmp_status), 'status'))
 
 #------------------------------------------------------------------------------
 # main driver function
