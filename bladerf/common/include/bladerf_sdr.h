@@ -54,7 +54,8 @@ public:
     
     
     //-----------------------------------------------------------------------------
-    BLADERF_SDR(struct bladerf* dev_) : dev(dev_) 
+    BLADERF_SDR(struct bladerf* dev_) : dev(dev_)
+    //BLADERF_SDR()
     {
         // Load list of supported sample rates
         //sampleRates_ = loadSampleRates();
@@ -91,7 +92,7 @@ public:
     }   // end of ~
     
     //-----------------------------------------------------------------------------
-    void set_rx_frequency(uint64_t rx_freq)
+    void set_rx_frequency(uint64_t rx_freq) override
     {
         auto blade_status = bladerf_set_frequency(dev, rx, rx_freq);
         blade_status |= bladerf_get_frequency(dev, rx, &rx_freq);
@@ -113,7 +114,7 @@ public:
     }   // end of get_rx_frequency
 
     //-----------------------------------------------------------------------------
-    void set_tx_frequency(uint64_t tx_freq)
+    void set_tx_frequency(uint64_t tx_freq) override
     {
         auto blade_status = bladerf_set_frequency(dev, tx, tx_freq);
         blade_status |= bladerf_get_frequency(dev, tx, &tx_freq);
@@ -135,7 +136,7 @@ public:
     }   // end of get_tx_frequency
 
     //-----------------------------------------------------------------------------
-    void set_rx_samplerate(uint64_t fs)
+    void set_rx_samplerate(uint64_t fs) override
     {
         auto blade_status = bladerf_set_sample_rate(dev, rx, fs, &rx_fs);
 
@@ -212,10 +213,10 @@ public:
     }   // end of init_tx
     
     //-----------------------------------------------------------------------------
-    void set_rx_gain(bladerf_gain rx_gain, bladerf_gain_mode gain_mode)
+    void set_rx_gain(int32_t rx_gain, uint32_t gain_mode) override
     {
         // the gain must be set after the module has been enabled
-        auto blade_status = bladerf_set_gain_mode(dev, rx, gain_mode);
+        auto blade_status = bladerf_set_gain_mode(dev, rx, (bladerf_gain_mode)gain_mode);
         blade_status |= bladerf_set_gain(dev, rx, rx_gain);
         blade_status |= bladerf_get_gain(dev, rx, &rx_gain);
         
@@ -242,7 +243,7 @@ public:
     }   // end of set_tx_gain
 
     //-----------------------------------------------------------------------------
-    void set_rx_bandwidth(bladerf_bandwidth bw_)
+    void set_rx_bandwidth(uint32_t bw_) override
     {
         auto blade_status = bladerf_set_bandwidth(dev, rx, bw_, &rx_bw);
 

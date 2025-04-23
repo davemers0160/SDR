@@ -21,7 +21,8 @@ public:
 
     //   static std::unique_ptr<Source> build(const std::string& type, Config& config);
     static std::unique_ptr<SDR_BASE> build();
-    
+    //SDR_BASE() {}
+
     //virtual void init();
 
     virtual uint64_t get_rx_samplerate() const = 0;
@@ -30,7 +31,13 @@ public:
     virtual uint64_t get_rx_frequency() const = 0;
     virtual uint64_t get_tx_frequency() const = 0;
 
-    
+    virtual void set_rx_samplerate(uint64_t fs) = 0;
+    virtual void set_rx_gain(int32_t gain, uint32_t mode) = 0;
+    virtual void set_rx_bandwidth(uint32_t bw) = 0;
+
+    virtual void set_rx_frequency(uint64_t f) = 0;
+    virtual void set_tx_frequency(uint64_t f) = 0;
+
     // start the SDR collecting samples
     virtual void start(std::vector<std::complex<float>> &cf_samples) = 0;
     

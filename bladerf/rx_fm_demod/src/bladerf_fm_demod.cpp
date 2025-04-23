@@ -67,9 +67,9 @@ std::unique_ptr<SDR_BASE> SDR_BASE::build()
     // initialize the 
     bladerf_dev->init_rx();
 
-    bladerf_dev->set_rx_frequency(105000000);
+    bladerf_dev->set_rx_frequency(104000000);
     bladerf_dev->set_rx_samplerate(1000000);
-    bladerf_dev->set_rx_gain(30, BLADERF_GAIN_MANUAL);
+    bladerf_dev->set_rx_gain(66, BLADERF_GAIN_MANUAL);
     bladerf_dev->set_rx_bandwidth(1000000);
 
     //bladerf_dev->setSamplePublisher(std::move(config.Bladerf.samplePublisher));
@@ -96,7 +96,7 @@ int main(int argc, char** argv)
     bladerf_frequency rx_freq;
     bladerf_sample_rate fs;
     bladerf_bandwidth rx_bw;
-    bladerf_gain rx1_gain = 32;
+    bladerf_gain rx1_gain = 65;
     int64_t span = 100000;
 
     int64_t f_offset;           // offset from the tuned frequency (Hz)
@@ -115,25 +115,25 @@ int main(int argc, char** argv)
     //std::string filename = "../../rx_record/recordings/096M600_1M__10s_test.bin"; 
     //std::ifstream input_data(filename, std::ios::binary);
 
-    uint8_t test_case = 1;
+    uint8_t test_case = 0;
 
     switch (test_case)
     {
     // NOAA radio
     case 0:
         fs = 1000000;
-        rx_freq = 162400000;
-        rx_bw = 500000;
+        rx_freq = 162550000;
+        rx_bw = 1000000;
         f_offset = 50000;
-        channel_bw = 40000;
-        audio_freq = 20000;
-        n_taps = 80;
+        channel_bw = 50000;
+        audio_freq = 10000;
+        n_taps = 101;
         break;
 
     // FM radio station
     case 1:
         fs = 1000000;
-        rx_freq = 95700000;
+        rx_freq = 104300000;
         rx_bw = 1000000;
         f_offset = 100000;
         channel_bw = 200000;
@@ -148,7 +148,7 @@ int main(int argc, char** argv)
         f_offset = 120000;
         channel_bw = 48000;
         audio_freq = 4800;
-        n_taps = 100;
+        n_taps = 101;
         break;
 
     }
@@ -193,6 +193,14 @@ int main(int argc, char** argv)
     try{
 
         std::unique_ptr<SDR_BASE> sdr = SDR_BASE::build();
+
+        //std::unique_ptr<SDR_BASE> sdr = new BLADERF_SDR();
+        //SDR_BASE* sdr = new BLADERF_SDR();
+
+        sdr->set_rx_frequency(rx_freq);
+        sdr->set_rx_samplerate(fs);
+        sdr->set_rx_gain(66, BLADERF_GAIN_MANUAL);
+        sdr->set_rx_bandwidth(fs);
 
         // decimation rate
         int64_t dec_rate = (int64_t)(fs / (float)channel_bw);
