@@ -12,10 +12,10 @@ frequency:
 hop_type: 0
     
 # sample rate for each step (Hz)
-sample_rate: 20000000
+sample_rate: 40000000
 
 # filter bandwidth
-bandwidth: 200000
+bandwidth: 20000000
 
 # timing (nanoseconds)
 timing:
@@ -23,7 +23,11 @@ timing:
     off_time: 499e6
 
 # tx gain
-tx_gain: 65
+tx_gain: 50
 
 # location where the test IQ file is located
-IQ_file: "../../../../data/RF/test.sc16"
+#IQ_file: "../../../../data/RF/cw_PW400_PRI280_SR40M000_80.sc16"
+#IQ_file: "../../../../data/RF/cw_PW175_PRI200_SR40M000.sc16"
+IQ_file: "../../../../data/RF/cw_PW400_PRI506_SR40M000_80.sc16"
+#IQ_file: "../../../../data/RF/radar/bpsk_mls9_64_20M000.sc16"
+#IQ_file: "../../../../data/RF/radar/bpsk_mls9-511_64_32M000.sc16"
