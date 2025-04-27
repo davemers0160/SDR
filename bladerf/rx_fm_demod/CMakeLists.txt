@@ -16,7 +16,7 @@
 # linux: cmake --build . --config Release -- -j4
 #
 
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.9)
 
 PROJECT(bladerf_fm_demod)
 set(exe_name "blade_fm_demod")
@@ -44,7 +44,6 @@ if(WIN32)
         set(COMMON_ROOT "D:/Common")
     elseif(${PLATFORM} STREQUAL "Laptop_Beast")
         set(COMMON_ROOT "D:/Projects/Common")
-        set(RYML_ROOT "D:/Projects/rapidyaml")
     else()
         set(COMMON_ROOT "C:/Projects/Common")
     endif()    

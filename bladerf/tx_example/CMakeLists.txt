@@ -17,7 +17,7 @@
 #
 
 
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.9)
 
 PROJECT(bladerf_tx_example)
 set(exe_name "blade_tx")
@@ -138,6 +138,8 @@ message(" ")
 include_directories(${project_includes})
 add_executable(${exe_name} ${SOURCES})
 target_link_libraries(${exe_name} ${project_libs})
+
+add_definitions(-DUSE_RAPIDYAML)
 
 if(WIN32)
     message("MSVC Version: " ${MSVC_VERSION})

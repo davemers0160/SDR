@@ -4,9 +4,10 @@
 #include <cstdint>
 #include <string>
 #include <filesystem>
+#include <vector>
+#include <algorithm>
 
 #include <file_parser.h>
-
 
 // bladeRF includes
 #include <libbladeRF.h>
@@ -46,7 +47,7 @@ private:
 };
 
 //-----------------------------------------------------------------------------
-int select_bladerf(int num_devices, struct bladerf_devinfo* device_list)
+int select_bladerf(uint32_t num_devices, struct bladerf_devinfo* device_list)
 {
     uint32_t idx;
     std::string console_input;
@@ -287,6 +288,10 @@ std::vector<std::string> directory_listing(const std::string &path, const std::s
             files.push_back(entry.path().filename().string());
         }
     }
+    
+    // sort them alphabetically
+    std::sort(files.begin(), files.end(), std::less<std::string>());
+
     return files;
 }   // end of directory_listing
 
@@ -294,8 +299,8 @@ std::vector<std::string> directory_listing(const std::string &path, const std::s
 std::vector<hop_parameters> get_hop_parameters(struct bladerf* dev, bladerf_channel ch, bladerf_frequency start_freq, bladerf_frequency stop_freq, bladerf_frequency step)
 {
 	uint32_t idx;
-	uint32_t num_hops;
-	int32_t blade_status;
+	//uint32_t num_hops;
+	int32_t blade_status = 0;
 	std::vector<bladerf_frequency> hop_sequence;	
 	
 	generate_range(start_freq, stop_freq, (double)step, hop_sequence);

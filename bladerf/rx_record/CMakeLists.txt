@@ -117,6 +117,8 @@ include_directories(${project_includes})
 add_executable(${exe_name} ${SOURCES})
 target_link_libraries(${exe_name} ${project_libs})
 
+add_definitions(-DUSE_RAPIDYAML)
+
 if(WIN32)
     message("MSVC Version: " ${MSVC_VERSION})
     # uncomment for MSVC and cmake greater than 3.6.0

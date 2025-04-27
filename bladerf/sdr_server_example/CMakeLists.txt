@@ -81,8 +81,8 @@ else()
         set(COMMON_ROOT "~/Projects/Common")
         set(RYML_ROOT "~/Projects/rapidyaml")
     else()
-        set(COMMON_ROOT "~/Projects/Common")
-        set(RYML_ROOT "~/Projects/rapidyaml")
+        set(COMMON_ROOT "/mnt/d/Projects/Common")
+        set(RYML_ROOT "/mnt/d/Projects/rapidyaml")
     endif()
     set(RYML_LIB "/usr/local/lib/libryml.so")
     
@@ -103,11 +103,11 @@ set(project_includes
     "include" 
     "${PR_ROOT}/common/include"
     "${COMMON_ROOT}/include"
-    "${RYML_ROOT}/include"
+    #"${RYML_ROOT}/include"
     )
 
 set(project_libs ${project_libs} 
-    ${RYML_LIB}
+    #${RYML_LIB}
     cppzmq
     )
 

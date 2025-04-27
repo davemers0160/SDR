@@ -17,7 +17,7 @@
 #
 
 
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.9)
 
 PROJECT(bladerf_rx_example)
 set(exe_name "blade_rx")
