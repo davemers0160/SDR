@@ -229,26 +229,26 @@ def index():
 #
 #     return {'server_status': server_status }
 
-# @app.before_request
-# def before_first_request():
-#     app.before_request_funcs[None].remove(before_first_request)
-#     threading.Thread(target=update_status).start()
+@app.before_request
+def before_first_request():
+    app.before_request_funcs[None].remove(before_first_request)
+    threading.Thread(target=update_status).start()
 
-# def update_status():
-#     global sdr_publisher, server_status
-#     with app.app_context():
-#         while True:
-#             tmp_status = ""
-#             try:
-#                 time.sleep(5)
-#                 # tmp_status = sdr_publisher.recv_string()
-#                 res = turbo.push(turbo.replace(render_template('server_status.html', server_status=server_status), 'status'))
-#
-#             except NameError:
-#                 tmp_status = ""
-#
-#             # finally:
-#             #     turbo.push(turbo.replace(render_template('server_status.html', server_status=tmp_status), 'status'))
+def update_status():
+    global sdr_publisher, server_status, message_label
+    with app.app_context():
+        while True:
+            tmp_status = ""
+            try:
+                time.sleep(1)
+                server_status = sdr_publisher.recv_string()
+                res = turbo.push(turbo.replace(render_template('server_status.html', server_status=server_status, message_label=message_label),"status"))
+
+            except NameError:
+                tmp_status = ""
+
+            # finally:
+            #     turbo.push(turbo.replace(render_template('server_status.html', server_status=tmp_status), 'status'))
 
 #------------------------------------------------------------------------------
 # main driver function

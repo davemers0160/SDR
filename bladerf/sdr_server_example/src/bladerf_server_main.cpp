@@ -114,7 +114,7 @@ inline void publisher_thread(zmq::context_t& context)
         blade_pub_socket.send(zmq_message, zmq::send_flags::none);
         
         std::cout << "Sent: " << message << std::endl;
-        std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
     blade_pub_socket.close();
