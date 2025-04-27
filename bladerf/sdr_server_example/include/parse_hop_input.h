@@ -10,6 +10,7 @@
 #include <libbladeRF.h>
 #include <bladeRF2.h>
 
+#if defined(USE_RAPIDYAML)
 
 //-----------------------------------------------------------------------------
 inline void read_hop_params(std::string param_filename,
@@ -71,4 +72,6 @@ inline void read_hop_params(std::string param_filename,
     }
 
 }   // end of read_hop_params
+#endif  // USE_RAPIDYAML
+
 #endif	// _BLADERF_PARSE_INPUT_H_

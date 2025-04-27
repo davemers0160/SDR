@@ -81,16 +81,16 @@ inline zmq::socket_t create_server_connection(std::string ip_address, std::strin
 }  // end of create_server_connection
 
 //-----------------------------------------------------------------------------
-inline void close_server(zmq::context_t& context, zmq::socket_t &socket1)
+inline void close_server(zmq::context_t& context, std::vector<zmq::socket_t*> sockets)
 {
     uint32_t idx;
     
-    //for (idx = 0; idx < sockets.size(); ++idx)
-    //{
-    //    sockets[idx].close();
-    //}
     // close the sockets
-    socket1.close();
+    for (idx = 0; idx < sockets.size(); ++idx)
+    {
+        sockets[idx]->close();
+    }
+    //socket1->close();
     //socket2.close();
 
     // close the contect

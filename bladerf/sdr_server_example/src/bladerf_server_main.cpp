@@ -1,6 +1,9 @@
 // ----------------------------------------------------------------------------------------
 #define _CRT_SECURE_NO_WARNINGS
+#if defined(USE_RAPIDYAML)
+
 #include <ryml_all.hpp>
+#endif
 
 #if defined(_WIN32) | defined(__WIN32__) | defined(__WIN32) | defined(_WIN64) | defined(__WIN64)
 
@@ -50,7 +53,6 @@
 #include "parse_hop_input.h"
 #include "bladerf_server_commands.h"
 
-
 //-----------------------------------------------------------------------------
 //--------------------------- GLOBAL VARIABLES --------------------------------
 //const double pi = 3.14159265358979323846;
@@ -99,10 +101,10 @@ void sig_handler(int signo)
 }   // end of sig_handler
 
 //-----------------------------------------------------------------------------
-inline void publisher_thread(zmq::context_t& context)
+inline void publisher_thread(zmq::socket_t &pub_socket) //zmq::context_t& context)
 {
     uint8_t index = 0;
-    zmq::socket_t blade_pub_socket = create_server_connection(BLADERF_IP_ADDRESS, BLADERF_STATUS_PORT, context, static_cast<int32_t>(zmq::socket_type::pub));
+    //zmq::socket_t bladerf_pub_socket = create_server_connection(BLADERF_IP_ADDRESS, BLADERF_STATUS_PORT, context, static_cast<int32_t>(zmq::socket_type::pub));
     
     std::cout << std::endl << "Starting Publisher Thread!" << std::endl << std::endl;
 
@@ -111,13 +113,13 @@ inline void publisher_thread(zmq::context_t& context)
         std::string message = num2str(++index, "0x%02X");
         zmq::message_t zmq_message(message.size());
         memcpy(zmq_message.data(), message.c_str(), message.size());
-        blade_pub_socket.send(zmq_message, zmq::send_flags::none);
+        pub_socket.send(zmq_message, zmq::send_flags::none);
         
         std::cout << "Sent: " << message << std::endl;
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
-    blade_pub_socket.close();
+    //blade_pub_socket.close();
 }
 
 //-----------------------------------------------------------------------------
@@ -214,7 +216,6 @@ int main(int argc, char** argv)
     const uint32_t num_buffers = 1024;
     const uint32_t buffer_size = 1024 * 4;        // must be a multiple of 1024
     const uint32_t num_transfers = 128;
-
 
     // TX parameters
     bladerf_sample_rate tx_sample_rate = 40000000;
@@ -320,8 +321,8 @@ int main(int argc, char** argv)
     std::cout << "Starting BladeRF SDR Server..." << std::endl;
     zmq::context_t bladerf_context{ 1 };
     zmq::socket_t bladerf_socket = create_server_connection(BLADERF_IP_ADDRESS, BLADERF_PORT, bladerf_context, static_cast<int32_t>(zmq::socket_type::rep));
+    zmq::socket_t bladerf_pub_socket = create_server_connection(BLADERF_IP_ADDRESS, BLADERF_STATUS_PORT, bladerf_context, static_cast<int32_t>(zmq::socket_type::pub));
     std::cout << "BladeRF SDR Server Ready!" << std::endl << std::endl;
-
 
     //-----------------------------------------------------------------------------
     // read in the data
@@ -501,7 +502,7 @@ int main(int argc, char** argv)
         tx_thread = std::thread(transmit_thread, dev, tx, std::ref(samples));
 
         // publisher thread
-        std::thread pub_thread = std::thread(publisher_thread, std::ref(bladerf_context));
+        std::thread pub_thread = std::thread(publisher_thread, std::ref(bladerf_pub_socket));
 
         // wait for a little to get the tx thread started
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -773,7 +774,7 @@ int main(int argc, char** argv)
 
         // close the server
         std::cout << std::endl << "Closing the SDR Server..." << std::endl;
-        close_server(bladerf_context, bladerf_socket);
+        close_server(bladerf_context, { &bladerf_socket, &bladerf_pub_socket });
 
         // disable the tx channel RF frontend
         std::cout << "Disabling BladeRF frontend..." << std::endl;
