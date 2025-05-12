@@ -17,7 +17,7 @@
 <head>
     <title>SDR Server Interface</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    {{ turbo() }}
+    <!-- {{ turbo() }} -->
 </head>
 <body>
 
@@ -95,7 +95,8 @@
 
         <div class="enable_section">
             <turbo-frame id="enable_frame">
-            <form method="POST" action="/" data-turbo-frame="message_frame">
+            <!--<form method="POST" action="/" data-turbo-frame="message_frame">-->
+            <form method="POST">
 
                 {% if tx_enable_state %}
                     <!--<button type=submit class="btn btn-default" name="lamp" value="on">-->

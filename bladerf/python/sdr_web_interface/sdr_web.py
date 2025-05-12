@@ -50,7 +50,7 @@ def hello_world():
     return 'Hello World'
 
 #------------------------------------------------------------------------------
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/test2', methods=['GET', 'POST'])
 def index():
     global sdr_client, message_label, file_list, sdr_server_ip, sdr_server_port, tx_enable_state, amp_enable_state, \
         sr_str, start_freq_str, stop_freq_str, freq_step_str, gain_str, bw_str, sdr_publisher
@@ -257,7 +257,7 @@ if __name__ == '__main__':
 
     message_label = "Init\n"
     file_list = []
-    sdr_server_ip = "172.26.1.200"
+    sdr_server_ip = "10.223.0.100"
     sdr_server_port = "25252"
     tx_enable_state = False
     amp_enable_state = False
