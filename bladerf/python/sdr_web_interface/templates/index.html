@@ -71,6 +71,10 @@
                 <input type="number" id="gain" name="gain" value={{gain_str}} required>
                 <BR><BR>
 
+                <label for="text_input">Scan Time (s): </label>
+                <input type="number" id="scan_time" name="scan_time" value={{scan_str}} required>
+                <BR><BR>
+
                 <input type="submit" class="submit_btn" name="submit_button" value="Config Tx">
 
             </form>
@@ -98,11 +102,16 @@
             <!--<form method="POST" action="/" data-turbo-frame="message_frame">-->
             <form method="POST">
 
+                {% if amp_enable_state %}
+                    <button type="submit" class="enable_btn" name="rf_button" value="amp_on" style="background-color: green;">Disable RF Section</button>
+                {% else %}
+                    <button type="submit" class="enable_btn" name="rf_button" value="amp_off" style="background-color: red;">Enable RF Section</button>
+                {% endif %}
+
                 {% if tx_enable_state %}
                     <!--<button type=submit class="btn btn-default" name="lamp" value="on">-->
                     <!--<input type="submit" name="submit_button" value="Enable TX" style="background-color: green;">-->
                     <button type="submit" class="enable_btn" name="tx_button" value="on" style="background-color: green;">Disable Tx</button>
-
                 {% else %}
                     <!--<input type="submit" name="submit_button" value="Disable TX" style="background-color: red;">-->
                     <button type="submit" class="enable_btn" name="tx_button" value="off" style="background-color: red;">Enable Tx</button>
@@ -110,11 +119,12 @@
                 <!--<input type="submit" id="myButton" name="submit_button" value="Enable TX" style="background-color: red;" onclick="change_color()">-->
                 <!--<button id="myButton" style="background-color: lightblue;" onclick="changeColor()">Click me</button>-->
 
-                {% if amp_enable_state %}
-                    <button type="submit" class="enable_btn" name="rf_button" value="amp_on" style="background-color: green;">Disable RF Section</button>
+                {% if scan_enable_state %}
+                    <button type="submit" class="enable_btn" name="scan_button" value="scan_on" style="background-color: green;">Disable Scan</button>
                 {% else %}
-                    <button type="submit" class="enable_btn" name="rf_button" value="amp_off" style="background-color: red;">Enable RF Section</button>
+                    <button type="submit" class="enable_btn" name="scan_button" value="scan_off" style="background-color: red;">Enable Scan</button>
                 {% endif %}
+
             </form>
             </turbo-frame>
         </div>

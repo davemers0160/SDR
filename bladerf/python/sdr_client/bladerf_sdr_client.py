@@ -38,7 +38,8 @@ class bladerf_sdr_client:
     #SET_TX_SAMPLERATE       = (BLADERF_SERVER_ID | 0x00000204)
     SET_TX_BANDWIDTH        = (BLADERF_SERVER_ID | 0x00000205)
     ENABLE_AMP              = (BLADERF_SERVER_ID | 0x00000206)
-    
+    ENABLE_SCAN             = (BLADERF_SERVER_ID | 0x00000207)
+
 
     GET_IQ_FILES            = (BLADERF_SERVER_ID | 0x00000300)
     LOAD_IQ_FILE            = (BLADERF_SERVER_ID | 0x00000301)
@@ -126,15 +127,18 @@ class bladerf_sdr_client:
             return result       
     
     #------------------------------------------------------------------------------
-    def config_tx(self, start_frequency: np.uint64, stop_frequency: np.uint64, frequency_step: np.int32, sample_rate: np.uint32, bw: np.uint32, gain: np.int32):
+    def config_tx(self, start_frequency: np.uint64, stop_frequency: np.uint64, frequency_step: np.int32,
+                  sample_rate: np.uint32, bw: np.uint32, gain: np.int32, scan_time: np.float32):
         
         stf_32M = (start_frequency >> np.uint64(32)).astype(np.uint32)
         stf_32L = (start_frequency & np.uint64(0x00FFFFFFFF)).astype(np.uint32)
         spf_32M = (stop_frequency >> np.uint64(32)).astype(np.uint32)
         spf_32L = (stop_frequency & np.uint64(0x00FFFFFFFF)).astype(np.uint32)
-        
+        # sct_32 = (sct_32).astype(np.uint32)
+        sct_32 = scan_time.view(np.uint32).copy()
+
         # create the command message and convert to bytearray
-        command = np.array([self.CONFIG_TX, stf_32M, stf_32L, spf_32M, spf_32L, frequency_step, sample_rate, bw, gain]).astype(np.uint32)
+        command = np.array([self.CONFIG_TX, stf_32M, stf_32L, spf_32M, spf_32L, frequency_step, sample_rate, bw, gain, sct_32]).astype(np.uint32)
         cmd_fs = "<" + str(command.size) + "I"       
         command_msg = struct.pack(cmd_fs, *command)
         
@@ -197,6 +201,29 @@ class bladerf_sdr_client:
             response = np.array(struct.unpack(res_fs, response)).astype(np.uint32)
 
             if (response[0] == np.uint32(self.ENABLE_TX)):
+                result = response[1]
+
+        except Exception as e:
+            print(f"An error occurred sending/receiving the request: {e}")
+
+        finally:
+            return result
+
+    def enable_scan(self, status: bool):
+        command = np.array([self.ENABLE_SCAN, int(status)]).astype(np.uint32)
+        cmd_fs = "<" + str(command.size) + "I"
+        command_msg = struct.pack(cmd_fs, *command)
+
+        result = -1
+        try:
+            # send the command message
+            self.socket.send(command_msg)
+
+            response = self.socket.recv()
+            res_fs = "<" + str(len(response)//4) + "I"
+            response = np.array(struct.unpack(res_fs, response)).astype(np.uint32)
+
+            if (response[0] == np.uint32(self.ENABLE_SCAN)):
                 result = response[1]
 
         except Exception as e:

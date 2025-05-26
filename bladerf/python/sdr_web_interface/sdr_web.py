@@ -53,7 +53,8 @@ def hello_world():
 @app.route('/test2', methods=['GET', 'POST'])
 def index():
     global sdr_client, message_label, file_list, sdr_server_ip, sdr_server_port, tx_enable_state, amp_enable_state, \
-        sr_str, start_freq_str, stop_freq_str, freq_step_str, gain_str, bw_str, sdr_publisher
+        sr_str, start_freq_str, stop_freq_str, freq_step_str, gain_str, bw_str, sdr_publisher, scan_enable_state, \
+        scan_str
 
     iq_filename = None
     # tx_enable_state = False
@@ -123,6 +124,34 @@ def index():
                     amp_enable_state = False
                     message_label = message_label + "Failed to set RF state\n"
 
+        # ------------------------------------------------------------------------------
+        # Scan enable button
+        item_list = request.form.getlist("scan_button")
+        if len(item_list) > 0:
+
+            if request.form["scan_button"] == "scan_on":
+                try:
+                    scan_enable_state = False
+
+                    result = sdr_client.enable_scan(scan_enable_state)
+                    message_label = message_label + "Scan: {}\n".format(result)
+                    print("result: {}\n".format(result))
+
+                except NameError:
+                    scan_enable_state = False
+                    message_label = message_label + "Failed to set Scan state\n"
+
+            elif request.form["scan_button"] == "scan_off":
+                try:
+                    scan_enable_state = True
+
+                    result = sdr_client.enable_scan(scan_enable_state)
+                    message_label = message_label + "Scan: {}\n".format(result)
+                    print("result: {}\n".format(result))
+
+                except NameError:
+                    scan_enable_state = False
+                    message_label = message_label + "Failed to set Scan state\n"
 
         #------------------------------------------------------------------------------
         # Submit button
@@ -165,6 +194,7 @@ def index():
                 freq_step_str = request.form["freq_step"]
                 gain_str = request.form["gain"]
                 bw_str = request.form["bandwidth"]
+                scan_str = request.form["scan_time"]
 
                 try:
                     sample_rate = np.uint32(float(sr_str)*1e6)
@@ -173,8 +203,9 @@ def index():
                     freq_step = np.uint32(float(freq_step_str)*1e6)
                     bandwidth = np.uint32(float(bw_str)*1e6)
                     gain = np.uint32(int(gain_str))
+                    scan_time = np.float32(float(scan_str))
 
-                    result = sdr_client.config_tx(start_freq, stop_freq, freq_step, sample_rate, bandwidth, gain)
+                    result = sdr_client.config_tx(start_freq, stop_freq, freq_step, sample_rate, bandwidth, gain, scan_time)
                     print("result: {}\n".format(result))
                     message_label = message_label + "Config Tx: {}\n".format(result)
 
@@ -215,7 +246,8 @@ def index():
     return render_template('index.html', sdr_server_ip=sdr_server_ip, sdr_server_port=sdr_server_port,
                            options=file_list, tx_enable_state=tx_enable_state, sr_str=sr_str, start_freq_str=start_freq_str,
                            stop_freq_str=stop_freq_str, freq_step_str=freq_step_str, gain_str=gain_str, bw_str=bw_str,
-                           amp_enable_state=amp_enable_state, message_label=message_label) #, selected_value=text_data)
+                           scan_str=scan_str,
+                           amp_enable_state=amp_enable_state, message_label=message_label, scan_enable_state=scan_enable_state) #, selected_value=text_data)
 
 
 # @app.context_processor
@@ -261,12 +293,14 @@ if __name__ == '__main__':
     sdr_server_port = "25252"
     tx_enable_state = False
     amp_enable_state = False
+    scan_enable_state = False
     sr_str = "40"
     start_freq_str = "2000"
     stop_freq_str = "2000"
     freq_step_str = "2"
-    gain_str = "66"
     bw_str = "40"
+    gain_str = "66"
+    scan_str = "4.5"
     server_status = ""
     # th = threading.Thread(target=update_status)
     # th.daemon = True

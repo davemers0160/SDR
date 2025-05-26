@@ -47,6 +47,7 @@
 #include "file_parser.h"
 #include "sleep_ms.h"
 #include "iq_utils.h"
+#include "dsp/dsp_windows.h"
 
 // Project Includes
 #include "bladerf_common.h"
@@ -65,6 +66,10 @@ atomic<bool> transmit = false;
 atomic<uint32_t> num_tx_samples;
 std::mutex tx_mutex;
 std::condition_variable tx_cv;
+
+atomic<bool> scan = false;
+std::mutex scan_mutex;
+std::condition_variable scan_cv;
 
 atomic<bool> recieve_thread_running = false;
 atomic<bool> recieve = false;
@@ -96,6 +101,7 @@ void sig_handler(int signo)
         recieve_thread_running = false;
         transmit = false;
         recieve = false;
+        scan = false;
     }
 
 }   // end of sig_handler
@@ -115,12 +121,13 @@ inline void publisher_thread(zmq::socket_t &pub_socket) //zmq::context_t& contex
         memcpy(zmq_message.data(), message.c_str(), message.size());
         pub_socket.send(zmq_message, zmq::send_flags::none);
         
-        std::cout << "Sent: " << message << std::endl;
+        //std::cout << "Sent: " << message << std::endl;
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
-    //blade_pub_socket.close();
-}
+    std::cout << "Publisher thread stopped." << std::endl;
+
+}   // end of publisher_thread
 
 //-----------------------------------------------------------------------------
 inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector<std::complex<int16_t>>& samples)
@@ -193,6 +200,56 @@ inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector
 
 }   // end of transmit_thread
 
+//-----------------------------------------------------------------------------
+inline void scan_thread(struct bladerf* dev, bladerf_channel tx, double &scan_time, bladerf_gain &gain)
+{
+    int32_t blade_status = 0;
+    int32_t scan_taps = 51;
+    bladerf_gain g = 0;
+    uint32_t index = 0;
+
+    std::vector<float> scan_steps = DSP::blackman_harris_window(scan_taps);
+    
+    // calculate the number of nano seconds delay for each step
+    uint64_t time_per_step = std::floor((scan_time / (double)scan_taps - 1.0e-7) * 1e9);
+
+    std::cout << "Scan thread started." << std::endl;
+
+    // main thread loop
+    while (transmit_thread_running == true)
+    {
+
+        std::this_thread::sleep_for(std::chrono::microseconds(10));
+
+        // main transmit loop
+        while (scan == true)
+        {
+            g = std::ceil(gain * scan_steps[index++]);
+            blade_status = bladerf_set_gain(dev, tx, g);
+
+            if (blade_status != 0)
+            {
+                std::cout << "Unable to set the gain value: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+            }
+
+            //std::cout << "gain: " << g << std::endl;
+            if(index >= scan_taps)
+                index = 0;
+
+            time_per_step = std::floor((scan_time / (double)scan_taps - 1.0e-7) * 1e9);
+            std::this_thread::sleep_for(std::chrono::nanoseconds(time_per_step));
+        }
+
+        // this wait will put the thread to sleep until transmit is true
+        {
+            std::unique_lock<std::mutex> lock(scan_mutex);
+            scan_cv.wait(lock, [] { return (scan == false); });
+        }
+    }
+
+    std::cout << "Scan thread stopped." << std::endl;
+
+}   // end of scan_thread
 
 //-----------------------------------------------------------------------------
 int main(int argc, char** argv)
@@ -221,7 +278,7 @@ int main(int argc, char** argv)
     bladerf_sample_rate tx_sample_rate = 40000000;
     bladerf_channel tx = BLADERF_CHANNEL_TX(0);
     bladerf_bandwidth tx_bw = 10000000;
-    bladerf_gain tx_gain = 65;
+    bladerf_gain tx_gain = 66;
     bladerf_frequency tx_start_freq = 2000000000;
     bladerf_frequency tx_stop_freq = 2000000000;
     int64_t tx_step = 2000000;
@@ -251,6 +308,9 @@ int main(int argc, char** argv)
     bool tmp_enable;
     bool current_tx_status;
 
+    double scan_time = 1.0;
+    uint32_t tmp_scan = 0.0;
+
     std::vector<std::complex<int16_t>> samples;
     std::string iq_filename;
     std::string iq_file_path;
@@ -258,6 +318,11 @@ int main(int argc, char** argv)
 
     std::string tmp_file;
     std::vector<uint8_t> tmp_vector;
+
+    union {
+        float f32;
+        uint32_t u32;
+    } t;
 
 #if defined(WITH_RPI)
     // define the gpio chip and pins
@@ -504,7 +569,13 @@ int main(int argc, char** argv)
         // publisher thread
         std::thread pub_thread = std::thread(publisher_thread, std::ref(bladerf_pub_socket));
 
-        // wait for a little to get the tx thread started
+        // wait for a little to get the thread started
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+        //scan = true;
+        std::thread sc_thread = std::thread(scan_thread, dev, tx, std::ref(scan_time), std::ref(tx_gain));
+        
+        // wait for a little to get the thread started
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
         std::cout << std::endl << "SDR Server Running..." << std::endl << std::endl;
@@ -614,6 +685,9 @@ int main(int argc, char** argv)
                 tx_sample_rate = command[CONFIG_SAMPLERATE_INDEX];
                 tx_bw = command[CONFIG_BANDWIDTH_INDEX];
                 tx_gain = command[CONFIG_GAIN_INDEX];
+                t.u32 = command[CONFIG_SCAN_INDEX];
+
+                scan_time = t.f32;
 
                 //generate_range(tx_start_freq, tx_stop_freq, (double)tx_step, tx_hop_sequence);
                 tx_hops = get_hop_parameters(dev, tx, tx_start_freq, tx_stop_freq, tx_step);
@@ -627,6 +701,14 @@ int main(int argc, char** argv)
                 if (blade_status != 0)
                 {
                     std::cout << "Error configuring channel: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                }
+
+                if (scan_time == 0.0)
+                {
+                    {
+                        std::lock_guard<std::mutex> lock(scan_mutex);
+                        scan = false;
+                    }
                 }
 
                 std::cout << "------------------------------------------------------------------" << std::endl;
@@ -678,17 +760,33 @@ int main(int argc, char** argv)
 
                 std::cout << "transmit: " << transmit << std::endl;
 
-// #if defined(WITH_RPI)
-                ////set the amp gpio pin
-                // gpio_value = (transmit == true) ? gpio_on : gpio_off;
-                // rf_gpio_line.set_value(rf_ctrl_pin, gpio_value);
-//#else
-//                std::cout << "Entered ENABLE_TX state" << std::endl;
-// #endif
-
                 msg_result.resize(2);
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::ENABLE_TX);
                 msg_result[1] = static_cast<uint32_t>(transmit);
+                break;
+
+            case static_cast<uint32_t>(BLADE_MSG_ID::ENABLE_SCAN):
+                tmp_enable = (bool)command[1];
+
+                {
+                    std::lock_guard<std::mutex> lock(scan_mutex);
+                    scan = tmp_enable;
+                }
+
+                if (scan == true)
+                {
+                    scan_cv.notify_one();
+                }
+                else
+                {
+                    blade_status = bladerf_set_gain(dev, tx, tx_gain);
+                }
+
+                msg_result.resize(2);
+                msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::ENABLE_SCAN);
+                msg_result[1] = static_cast<uint32_t>(scan);
+
+                std::cout << "scan: " << scan << std::endl;
                 break;
 
             case static_cast<uint32_t>(BLADE_MSG_ID::GET_IQ_FILES):
@@ -760,8 +858,11 @@ int main(int argc, char** argv)
         recieve_thread_running = false;
         transmit = false;
         recieve = false;
+        scan = false;
+
         tx_thread.join();
         pub_thread.join();
+        sc_thread.join();
 
 #if defined(WITH_RPI)
         // close the gpio line
