@@ -8,12 +8,8 @@
 # mkdir Projects
 #
 # put the directory minus some files - navigate to the directory that contains the black_siren folder
-# put -r black_siren.zip Projects/
-# put black_siren/bsm_rpi_sdr_config.sh .
 # chmod +x bsm_rpi_sdr_config.sh
 #
-# use the following if the zip is the internal contents of the repo
-# unzip black_siren.zip -d /black_siren
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
