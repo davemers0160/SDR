@@ -1,0 +1,26 @@
+[Unit]
+Description=SDR Server
+After=multi-user.target
+
+#------------------------------------------------------------------------------
+# note: ${USER} will need to be changed to the actual username
+#------------------------------------------------------------------------------
+[Service]
+ExecStartPre=/bin/sleep 10
+ExecStart=/home/${USER}/Projects/SDR/bladerf/sdr_server_eaxmple/build/./blade_server /home/${USER}/Projects/data/
+
+[Install]
+WantedBy=multi-user.target
+
+# useful commands
+# systemctl status bsm.service -n100
+# journalctl -u bsm -b
+# sudo systemctl start bsm.service
+# sudo systemctl stop bsm.service
+
+# To add and enable the service after it has been copied to: /lib/systemd/system/
+# reload the systemd daemon
+# sudo systemctl daemon-reload
+
+# enable the black siren server service and autostart
+# sudo systemctl enable bsm.service

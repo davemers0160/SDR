@@ -1,0 +1,27 @@
+[Unit]
+Description=SDR Web Interface
+
+#------------------------------------------------------------------------------
+# note: ${USER} will need to be changed to the actual username
+#------------------------------------------------------------------------------
+[Service]
+ExecStartPre=/bin/sleep 20
+WorkingDirectory=/home/${USER}/Projects/SDR/bladerf/python/sdr_web_interface
+ExecStart=/home/${USER}/venv/bin/python /home/${USER}/Projects/SDR/bladerf/python/sdr_web_interface/sdr_web.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+# useful commands
+# systemctl status server_web_interface.service -n100
+# journalctl -u server_web_interface -b
+# sudo systemctl start server_web_interface.service
+# sudo systemctl stop server_web_interface.service
+
+# To add and enable the service after it has been copied to: /lib/systemd/system/
+# reload the systemd daemon
+# sudo systemctl daemon-reload
+
+# enable the black siren server service and autostart
+# sudo systemctl enable server_web_interface.service
