@@ -47,7 +47,7 @@ private:
 };
 
 //-----------------------------------------------------------------------------
-int select_bladerf(uint32_t num_devices, struct bladerf_devinfo* device_list)
+int32_t select_bladerf(int32_t num_devices, struct bladerf_devinfo* device_list)
 {
     uint32_t idx;
     std::string console_input;
