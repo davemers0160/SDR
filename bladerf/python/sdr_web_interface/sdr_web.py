@@ -300,7 +300,7 @@ if __name__ == '__main__':
     freq_step_str = "2"
     bw_str = "40"
     gain_str = "66"
-    scan_str = "4.5"
+    scan_str = "4.00"
     server_status = ""
     # th = threading.Thread(target=update_status)
     # th.daemon = True

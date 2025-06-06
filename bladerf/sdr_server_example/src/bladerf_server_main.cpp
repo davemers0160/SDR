@@ -48,6 +48,7 @@
 #include "sleep_ms.h"
 #include "iq_utils.h"
 #include "dsp/dsp_windows.h"
+//#include "data_logger.h"
 
 // Project Includes
 #include "bladerf_common.h"
@@ -318,6 +319,7 @@ int main(int argc, char** argv)
 
     std::string tmp_file;
     std::vector<uint8_t> tmp_vector;
+    std::string error_msg;
 
     union {
         float f32;
@@ -348,6 +350,8 @@ int main(int argc, char** argv)
         return -1;
     }
 
+    //data_logger data_log(std::string(argv[1]), "bladerf_server_log");
+
     // read in the parameters
     //std::string param_filename = std::string(argv[1]);
     //iq_filename = std::string(argv[1]);
@@ -357,6 +361,17 @@ int main(int argc, char** argv)
     if (iq_file_list.empty() == false)
     {
         iq_filename = iq_file_path + iq_file_list[0];
+    }
+
+    // list the files found
+    for(idx=0; idx< iq_file_list.size(); ++idx)
+    {
+        std::cout << iq_file_list[idx] << std::endl;
+        //data_log << data_log.info() << iq_file_list[idx] << std::endl;
+        //std::cout << INFO << iq_file_list[idx] << std::endl;
+        //std::cout << info << iq_file_list[idx] << std::endl;
+        //std::cout << warning << iq_file_list[idx] << std::endl;
+        //std::cout << error(__FILE__, __LINE__) << "test" << std::endl;       
     }
 
     //read_hop_params(param_filename, start_freq, stop_freq, hop_step, sample_rate, tx_bw, hop_type, on_time, off_time, tx1_gain, iq_filename);
@@ -388,6 +403,7 @@ int main(int argc, char** argv)
     zmq::socket_t bladerf_socket = create_server_connection(BLADERF_IP_ADDRESS, BLADERF_PORT, bladerf_context, static_cast<int32_t>(zmq::socket_type::rep));
     zmq::socket_t bladerf_pub_socket = create_server_connection(BLADERF_IP_ADDRESS, BLADERF_STATUS_PORT, bladerf_context, static_cast<int32_t>(zmq::socket_type::pub));
     std::cout << "BladeRF SDR Server Ready!" << std::endl << std::endl;
+    //data_log.log_info("BladeRF SDR Server Ready!");
 
     //-----------------------------------------------------------------------------
     // read in the data
@@ -410,7 +426,9 @@ int main(int argc, char** argv)
 
         if (bladerf_num < 0)
         {
-            std::cout << "could not detect any bladeRF devices..." << std::endl;
+            error_msg = "Could not detect any bladeRF devices (" + std::to_string(bladerf_num) + ")";
+            std::cout << error_msg << std::endl;
+            //data_log.log_error(std::string(__FILE__), __LINE__, error_msg);
             return 0;
         }
 
@@ -419,14 +437,18 @@ int main(int argc, char** argv)
         blade_status = bladerf_open(&dev, ("*:serial=" + std::string(device_list[bladerf_num].serial)).c_str());
         if (blade_status != 0)
         {
-            std::cout << "Unable to open device: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+            error_msg = "Unable to open device: " + std::string(bladerf_strerror(blade_status));
+            std::cout << error_msg << std::endl;
+            //data_log.log_error(std::string(__FILE__), __LINE__, error_msg);
             return blade_status;
         }
 
         blade_status = bladerf_get_devinfo(dev, &dev_info);
         if (blade_status != 0)
         {
-            std::cout << "Unable to get the device info: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+            error_msg = "Unable to get the device info: " + std::string(bladerf_strerror(blade_status));
+            std::cout << error_msg << std::endl;
+            //data_log.log_error(std::string(__FILE__), __LINE__, error_msg);
             return blade_status;
         }
         std::cout << dev_info << std::endl;
@@ -448,7 +470,9 @@ int main(int argc, char** argv)
         blade_status |= bladerf_sync_config(dev, BLADERF_TX_X1, BLADERF_FORMAT_SC16_Q11, num_buffers, buffer_size, num_transfers, blade_timeout_ms);
         if (blade_status != 0)
         {
-            std::cout << "Failed to configure TX sync interface - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+            error_msg = "Failed to configure TX sync interface - error: " + std::string(bladerf_strerror(blade_status));
+            std::cout << error_msg << std::endl;
+            //data_log.log_warning(error_msg);
         }
         
         //blade_status = bladerf_sync_config(dev, BLADERF_RX_X1, BLADERF_FORMAT_SC16_Q11, num_buffers, buffer_size, num_transfers, blade_timeout_ms);
@@ -465,7 +489,9 @@ int main(int argc, char** argv)
         blade_status = bladerf_enable_module(dev, BLADERF_TX, true);
         if (blade_status != 0)
         {
-            std::cout << "Error enabling TX - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+            error_msg = "Error enabling TX - error: " + std::string(bladerf_strerror(blade_status));
+            std::cout << error_msg << std::endl;
+            //data_log.log_warning(error_msg);
         }
 
         // the gain must be set after the module has been enabled
@@ -474,7 +500,9 @@ int main(int argc, char** argv)
         blade_status |= bladerf_get_gain(dev, tx, &tx_gain);
         if (blade_status != 0)
         {
-            std::cout << "Error setting TX gain - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+            error_msg = "Error setting TX gain - error: " + std::string(bladerf_strerror(blade_status));
+            std::cout << error_msg << std::endl;
+            //data_log.log_warning(error_msg);
         }
 
         blade_status = bladerf_set_bandwidth(dev, tx, 20000000, NULL);
@@ -513,7 +541,9 @@ int main(int argc, char** argv)
         blade_status = bladerf_set_frequency(dev, tx, tx_hops[0].freq);
         if (blade_status != 0)
         {
-            std::cout << "Error enabling channel: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+            error_msg = "Error setting frequency: " + std::string(bladerf_strerror(blade_status));
+            std::cout << error_msg << std::endl;
+            //data_log.log_warning(error_msg);
         }
 
         std::cout << "------------------------------------------------------------------" << std::endl;
@@ -604,13 +634,16 @@ int main(int argc, char** argv)
             msg_result.clear();
             
             // parse the first part of the message to get the command
-            std::cout << "Received multipart message with " << num_messages.value() << " messages" << std::endl;
+            error_msg = "Received multipart message with " + std::to_string(num_messages.value()) + " messages"; 
+            std::cout << error_msg << std::endl;
+            //data_log.log_info(error_msg);
             
             // place the command messages into the command vector
             command.resize(command_messages[0].size() / sizeof(uint32_t));
             std::memcpy(command.data(), command_messages[0].data(), command_messages[0].size());
             std::cout << "message command id: " << num2str(command[0], "0x%08X") << std::endl << std::endl;
-                
+            //data_log.log_info("message command id: " + num2str(command[0], "0x%08X"));
+
             // if there are more than one message in a multipart message try to parse the message
             if (num_messages.value() > 1)
             {
@@ -793,6 +826,14 @@ int main(int argc, char** argv)
                 msg_result.resize(2);
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::GET_IQ_FILES);
                 msg_result[1] = 1;
+
+                // rescan the list in case things have changed
+                iq_file_list.clear();
+                iq_file_list = directory_listing(iq_file_path, ".sc16");
+                if (iq_file_list.empty() == false)
+                {
+                    iq_filename = iq_file_path + iq_file_list[0];
+                }
 
                 // the number of iq files in the supplied directory = iq_file_list.size()
                 // data order:

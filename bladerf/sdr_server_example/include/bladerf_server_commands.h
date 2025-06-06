@@ -41,6 +41,7 @@ enum class BLADE_MSG_ID : uint32_t
     // General Commands
     GET_VERSION             = (BLADERF_SERVER_ID | 0x00000000),
     SELECT_MODE             = (BLADERF_SERVER_ID | 0x00000001),     /* state (uint32) 0 - RX, 1 - TX */
+    SCAN_DATA_DIR           = (BLADERF_SERVER_ID | 0x00000002),
 
     // RX Commands
     CONFIG_RX               = (BLADERF_SERVER_ID | 0x00000100),     /* Start Freq (2-uint32 MSB), Stop Freq (2-uint32 MSB), Freq Step (uint32), samplerate (uint32), bw (uint32), gain (int32) */
