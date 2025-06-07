@@ -276,7 +276,7 @@ int main(int argc, char** argv)
     const uint32_t num_transfers = 128;
 
     // TX parameters
-    bladerf_sample_rate tx_sample_rate = 40000000;
+    bladerf_sample_rate tx_sample_rate = 20000000;
     bladerf_channel tx = BLADERF_CHANNEL_TX(0);
     bladerf_bandwidth tx_bw = 10000000;
     bladerf_gain tx_gain = 66;
@@ -288,7 +288,7 @@ int main(int argc, char** argv)
     std::thread tx_thread;
 
     // RX parameters
-    bladerf_sample_rate rx_sample_rate = 40000000;
+    bladerf_sample_rate rx_sample_rate = 20000000;
     bladerf_channel rx = BLADERF_CHANNEL_RX(0);
     bladerf_bandwidth rx_bw = 10000000;
     bladerf_gain rx_gain = 65;
@@ -367,8 +367,6 @@ int main(int argc, char** argv)
     for(idx=0; idx< iq_file_list.size(); ++idx)
     {
         std::cout << iq_file_list[idx] << std::endl;
-        //data_log << data_log.info() << iq_file_list[idx] << std::endl;
-        //std::cout << INFO << iq_file_list[idx] << std::endl;
         //std::cout << info << iq_file_list[idx] << std::endl;
         //std::cout << warning << iq_file_list[idx] << std::endl;
         //std::cout << error(__FILE__, __LINE__) << "test" << std::endl;       

@@ -294,11 +294,11 @@ if __name__ == '__main__':
     tx_enable_state = False
     amp_enable_state = False
     scan_enable_state = False
-    sr_str = "40"
+    sr_str = "20"
     start_freq_str = "2000"
     stop_freq_str = "2000"
     freq_step_str = "2"
-    bw_str = "40"
+    bw_str = "20"
     gain_str = "66"
     scan_str = "4.00"
     server_status = ""
