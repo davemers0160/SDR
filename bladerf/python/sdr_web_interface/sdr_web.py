@@ -220,7 +220,7 @@ def index():
 
             #------------------------------------------------------------------------------
             # update the IQ file
-            elif request.form["submit_button"] == "IQ File":
+            elif request.form["submit_button"] == "Load IQ File":
                 tmp_msg = ""
 
                 try:

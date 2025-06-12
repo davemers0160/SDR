@@ -21,9 +21,9 @@ const std::string BLADERF_IP_ADDRESS = "*";
 const std::string BLADERF_PORT = "25252";
 const std::string BLADERF_STATUS_PORT = "25254";
 
-const uint32_t MAJOR_REVISION = 1;
-const uint32_t MINOR_REVISION = 0;
-const uint32_t FIX_REVISION = 0;
+const uint32_t SDR_SERVER_MAJOR_VERSION = 1;
+const uint32_t SDR_SERVER_MINOR_VERSION = 1;
+const uint32_t SDR_SERVER_BUILD_VERSION = 0;
 
 // RX/TX config parameter indecies
 const uint16_t CONFIG_START_FREQ_MSB_INDEX = 1;

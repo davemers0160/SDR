@@ -48,7 +48,8 @@
 #include "sleep_ms.h"
 #include "iq_utils.h"
 #include "dsp/dsp_windows.h"
-//#include "data_logger.h"
+#include "data_logger.h"
+#include "file_ops.h"
 
 // Project Includes
 #include "bladerf_common.h"
@@ -92,11 +93,12 @@ atomic<uint32_t> num_rx_hops;
 atomic<uint16_t> tx_hop_type(1);
 
 //-----------------------------------------------------------------------------
-void sig_handler(int signo)
+void sig_handler(int sig_num)
 {
-    if ((signo == SIGINT) | (signo = SIGTERM))
+    if ((sig_num == SIGINT) | (sig_num == SIGTERM))
     {
-        fprintf(stderr, "received SIGINT: %d\n", signo);
+        //fprintf(stderr, "received SIGINT: %d\n", sig_num);
+        std::cout << info << "Received SIGINT: " << sig_num << std::endl;
         is_running = false;
         transmit_thread_running = false;
         recieve_thread_running = false;
@@ -113,7 +115,7 @@ inline void publisher_thread(zmq::socket_t &pub_socket) //zmq::context_t& contex
     uint8_t index = 0;
     //zmq::socket_t bladerf_pub_socket = create_server_connection(BLADERF_IP_ADDRESS, BLADERF_STATUS_PORT, context, static_cast<int32_t>(zmq::socket_type::pub));
     
-    std::cout << std::endl << "Starting Publisher Thread!" << std::endl << std::endl;
+    std::cout << info << "Starting Publisher Thread!" << std::endl << std::endl;
 
     while(is_running == true)
     {
@@ -126,7 +128,7 @@ inline void publisher_thread(zmq::socket_t &pub_socket) //zmq::context_t& contex
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
-    std::cout << "Publisher thread stopped." << std::endl;
+    std::cout << info << "Publisher thread stopped." << std::endl;
 
 }   // end of publisher_thread
 
@@ -137,7 +139,7 @@ inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector
     uint32_t hop_index = 0;
     uint8_t rffe_index = 0;
 	
-    std::cout << "Transmit thread started." << std::endl;
+    std::cout << info << "Transmit thread started." << std::endl;
 
     // main thread loop
     while (transmit_thread_running == true)
@@ -152,7 +154,7 @@ inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector
 
             if (blade_status != 0)
             {
-                std::cout << "Unable to send the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                std::cout << warning << "Unable to send the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
             }
 
             if(num_tx_hops > 1)
@@ -182,7 +184,7 @@ inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector
 #endif	
                 if (blade_status != 0)
                 {
-                    std::cout << "Unable to set the center frequency: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                    std::cout << warning << "Unable to set the center frequency: " << std::string(bladerf_strerror(blade_status)) << std::endl;
                 }
                 std::this_thread::sleep_for(std::chrono::microseconds(10));
 
@@ -197,7 +199,7 @@ inline void transmit_thread(struct bladerf* dev, bladerf_channel tx, std::vector
 
     }
 
-    std::cout << "Transmit thread stopped." << std::endl;
+    std::cout << info << "Transmit thread stopped." << std::endl;
 
 }   // end of transmit_thread
 
@@ -214,7 +216,7 @@ inline void scan_thread(struct bladerf* dev, bladerf_channel tx, double &scan_ti
     // calculate the number of nano seconds delay for each step
     uint64_t time_per_step = std::floor((scan_time / (double)scan_taps - 1.0e-7) * 1e9);
 
-    std::cout << "Scan thread started." << std::endl;
+    std::cout << info << "Scan thread started." << std::endl;
 
     // main thread loop
     while (transmit_thread_running == true)
@@ -230,7 +232,7 @@ inline void scan_thread(struct bladerf* dev, bladerf_channel tx, double &scan_ti
 
             if (blade_status != 0)
             {
-                std::cout << "Unable to set the gain value: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                std::cout << warning << "Unable to set the gain value: " << std::string(bladerf_strerror(blade_status)) << std::endl;
             }
 
             //std::cout << "gain: " << g << std::endl;
@@ -248,7 +250,7 @@ inline void scan_thread(struct bladerf* dev, bladerf_channel tx, double &scan_ti
         }
     }
 
-    std::cout << "Scan thread stopped." << std::endl;
+    std::cout << info << "Scan thread stopped." << std::endl;
 
 }   // end of scan_thread
 
@@ -345,13 +347,31 @@ int main(int argc, char** argv)
 
     if (argc < 2)
     {
-        std::cout << "supply a directory location the IQ data." << std::endl;
+        std::cout << warning << "Supply a directory location of the IQ data." << std::endl;
         std::cin.ignore();
         return -1;
     }
 
-    //data_logger data_log(std::string(argv[1]), "bladerf_server_log");
+    // make sure there is a path seperator 
+    std::string save_directory = path_check(std::string(argv[1]));
+    std::string base_name = "bladerf_server_log";
+    std::string log_version = "1.0";
 
+    std::string current_date = get_date();
+        
+    // create the full log file name
+    std::string filename = save_directory + base_name + "_" + current_date + ".txt";
+
+    // open up file stream as txt file and appendable
+    std::ofstream data_log;
+    data_log.open(filename, std::ios::out | std::ios::app);
+        
+    // write a header with the log version and date
+    data_log << "#-----------------------------------------------------------------------------" << std::endl;
+    data_log << "# Version: " << log_version << std::endl;
+    data_log << "# Date: " << current_date << std::endl;
+    data_log << "#-----------------------------------------------------------------------------" << std::endl;
+ 
     // read in the parameters
     //std::string param_filename = std::string(argv[1]);
     //iq_filename = std::string(argv[1]);
@@ -366,8 +386,7 @@ int main(int argc, char** argv)
     // list the files found
     for(idx=0; idx< iq_file_list.size(); ++idx)
     {
-        std::cout << iq_file_list[idx] << std::endl;
-        //std::cout << info << iq_file_list[idx] << std::endl;
+        std::cout << info << iq_file_list[idx] << std::endl;
         //std::cout << warning << iq_file_list[idx] << std::endl;
         //std::cout << error(__FILE__, __LINE__) << "test" << std::endl;       
     }
@@ -396,22 +415,35 @@ int main(int argc, char** argv)
     // vector to store and send the response back to the client
     std::vector<uint32_t> msg_result;
 
-    std::cout << "Starting BladeRF SDR Server..." << std::endl;
+    //-----------------------------------------------------------------------------
+    std::cout << "------------------------------------------------------------------------" << std::endl;
+    std::cout << "BLADERF SDR SERVER - Version: " << SDR_SERVER_MAJOR_VERSION << "." << SDR_SERVER_MINOR_VERSION << "." << SDR_SERVER_BUILD_VERSION << std::endl;
+    std::cout << "------------------------------------------------------------------------" << std::endl;
+    std::cout << std::endl;
+
+    data_log << "BLADERF SDR SERVER - Version: " << SDR_SERVER_MAJOR_VERSION << "." << SDR_SERVER_MINOR_VERSION << "." << SDR_SERVER_BUILD_VERSION << std::endl;
+    data_log << "------------------------------------------------------------------------" << std::endl;
+    data_log << std::endl;
+
+    std::cout << info << "Starting BladeRF SDR Server..." << std::endl;
+    data_log << info << "Starting BladeRF SDR Server..." << std::endl;
     zmq::context_t bladerf_context{ 1 };
     zmq::socket_t bladerf_socket = create_server_connection(BLADERF_IP_ADDRESS, BLADERF_PORT, bladerf_context, static_cast<int32_t>(zmq::socket_type::rep));
     zmq::socket_t bladerf_pub_socket = create_server_connection(BLADERF_IP_ADDRESS, BLADERF_STATUS_PORT, bladerf_context, static_cast<int32_t>(zmq::socket_type::pub));
-    std::cout << "BladeRF SDR Server Ready!" << std::endl << std::endl;
-    //data_log.log_info("BladeRF SDR Server Ready!");
+    std::cout << info << "BladeRF SDR Server Ready!" << std::endl << std::endl;
+    data_log << info << "BladeRF SDR Server Ready!" << std::endl << std::endl;
 
     //-----------------------------------------------------------------------------
     // read in the data
-    std::cout << "loading file: " << iq_filename << std::endl;
+    std::cout << info << "Loading IQ file: " << iq_filename << std::endl;
+    data_log << info << "Loading IQ file: " << iq_filename << std::endl;
     read_iq_data(iq_filename, samples);
 
     // the number of IQ samples is the number of samples divided by 2
     num_tx_samples = samples.size();
     //double sample_duration = (num_tx_samples) / (double)tx_sample_rate;
-    std::cout << "num_tx_samples: " << num_tx_samples << std::endl;
+    std::cout << info << "num_tx_samples: " << num_tx_samples << std::endl;
+    data_log << info << "num_tx_samples: " << num_tx_samples << std::endl;
 
 
     //-----------------------------------------------------------------------------
@@ -425,8 +457,8 @@ int main(int argc, char** argv)
         if (bladerf_num < 0)
         {
             error_msg = "Could not detect any bladeRF devices (" + std::to_string(bladerf_num) + ")";
-            std::cout << error_msg << std::endl;
-            //data_log.log_error(std::string(__FILE__), __LINE__, error_msg);
+            std::cout << warning << error_msg << std::endl;
+            data_log << warning << error_msg << std::endl;
             return 0;
         }
 
@@ -436,8 +468,8 @@ int main(int argc, char** argv)
         if (blade_status != 0)
         {
             error_msg = "Unable to open device: " + std::string(bladerf_strerror(blade_status));
-            std::cout << error_msg << std::endl;
-            //data_log.log_error(std::string(__FILE__), __LINE__, error_msg);
+            std::cout << warning << error_msg << std::endl;
+            data_log << warning << error_msg << std::endl;
             return blade_status;
         }
 
@@ -445,8 +477,8 @@ int main(int argc, char** argv)
         if (blade_status != 0)
         {
             error_msg = "Unable to get the device info: " + std::string(bladerf_strerror(blade_status));
-            std::cout << error_msg << std::endl;
-            //data_log.log_error(std::string(__FILE__), __LINE__, error_msg);
+            std::cout << warning << error_msg << std::endl;
+            data_log << warning << error_msg << std::endl;
             return blade_status;
         }
         std::cout << dev_info << std::endl;
@@ -456,8 +488,10 @@ int main(int argc, char** argv)
         num_tx_hops = std::max(0U, (uint32_t)tx_hops.size());
         num_rx_hops = std::max(0U, (uint32_t)rx_hops.size());
 
-        std::cout << "number of TX hops: " << num_tx_hops << std::endl << std::endl;
-        std::cout << "number of RX hops: " << num_rx_hops << std::endl << std::endl;
+        std::cout << info << "number of TX hops: " << num_tx_hops << std::endl << std::endl;
+        std::cout << info << "number of RX hops: " << num_rx_hops << std::endl << std::endl;
+        data_log << info << "number of TX hops: " << num_tx_hops << std::endl << std::endl;
+        data_log << info << "number of RX hops: " << num_rx_hops << std::endl << std::endl;
 
         //-----------------------------------------------------------------------------
         // set the sample_rate and bandwidth
@@ -469,8 +503,8 @@ int main(int argc, char** argv)
         if (blade_status != 0)
         {
             error_msg = "Failed to configure TX sync interface - error: " + std::string(bladerf_strerror(blade_status));
-            std::cout << error_msg << std::endl;
-            //data_log.log_warning(error_msg);
+            std::cout << warning << error_msg << std::endl;
+            data_log << warning << error_msg << std::endl;
         }
         
         //blade_status = bladerf_sync_config(dev, BLADERF_RX_X1, BLADERF_FORMAT_SC16_Q11, num_buffers, buffer_size, num_transfers, blade_timeout_ms);
@@ -488,8 +522,8 @@ int main(int argc, char** argv)
         if (blade_status != 0)
         {
             error_msg = "Error enabling TX - error: " + std::string(bladerf_strerror(blade_status));
-            std::cout << error_msg << std::endl;
-            //data_log.log_warning(error_msg);
+            std::cout << warning << error_msg << std::endl;
+            data_log << warning << error_msg << std::endl;
         }
 
         // the gain must be set after the module has been enabled
@@ -499,8 +533,8 @@ int main(int argc, char** argv)
         if (blade_status != 0)
         {
             error_msg = "Error setting TX gain - error: " + std::string(bladerf_strerror(blade_status));
-            std::cout << error_msg << std::endl;
-            //data_log.log_warning(error_msg);
+            std::cout << warning << error_msg << std::endl;
+            data_log << warning << error_msg << std::endl;
         }
 
         blade_status = bladerf_set_bandwidth(dev, tx, 20000000, NULL);
@@ -540,10 +574,11 @@ int main(int argc, char** argv)
         if (blade_status != 0)
         {
             error_msg = "Error setting frequency: " + std::string(bladerf_strerror(blade_status));
-            std::cout << error_msg << std::endl;
-            //data_log.log_warning(error_msg);
+            std::cout << warning << error_msg << std::endl;
+            data_log << warning << error_msg << std::endl;
         }
 
+        std::cout << info << "Config:" << std::endl;
         std::cout << "------------------------------------------------------------------" << std::endl;
         std::cout << "Transmitter:" << std::endl;
         std::cout << "  start freq:  " << tx_start_freq << std::endl;
@@ -555,6 +590,19 @@ int main(int argc, char** argv)
         std::cout << "  bw:          " << tx_bw << std::endl;
         std::cout << "  tx1_gain:    " << tx_gain << std::endl;
         std::cout << "------------------------------------------------------------------" << std::endl << std::endl;
+
+        data_log << info << "Config:" << std::endl;
+        data_log << "------------------------------------------------------------------" << std::endl;
+        data_log << "Transmitter:" << std::endl;
+        data_log << "  start freq:  " << tx_start_freq << std::endl;
+        data_log << "  stop freq:   " << tx_stop_freq << std::endl;
+        data_log << "  freq step:   " << tx_step << std::endl;
+        data_log << "  num hops:    " << num_tx_hops << std::endl;
+        data_log << "  hop type:    " << tx_hop_type << std::endl;
+        data_log << "  sample_rate: " << tx_sample_rate << std::endl;
+        data_log << "  bw:          " << tx_bw << std::endl;
+        data_log << "  tx1_gain:    " << tx_gain << std::endl;
+        data_log << "------------------------------------------------------------------" << std::endl << std::endl;
 
         // use this to flush out some samples that might be hung
         std::vector<int16_t> tmp_samples(buffer_size*4);
@@ -577,12 +625,14 @@ int main(int argc, char** argv)
         // handle SIGINT signals
         if (signal(SIGINT, sig_handler) == SIG_ERR) 
         {
-            std::cerr << "Unable to catch SIGINT signals" << std::endl;
+            std::cerr << warning << "Unable to catch SIGINT signals" << std::endl;
+            data_log << warning << "Unable to catch SIGINT signals" << std::endl;
         }
         // handle SIGTERM signals
         if (signal(SIGTERM, sig_handler) == SIG_ERR)
         {
-            std::cerr << "Unable to catch SIGTERM signals" << std::endl;
+            std::cerr << warning << "Unable to catch SIGTERM signals" << std::endl;
+            data_log << warning << "Unable to catch SIGTERM signals" << std::endl;
         }
 
         is_running = true;
@@ -606,7 +656,8 @@ int main(int argc, char** argv)
         // wait for a little to get the thread started
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-        std::cout << std::endl << "SDR Server Running..." << std::endl << std::endl;
+        std::cout << std::endl << info << "SDR Server Running..." << std::endl << std::endl;
+        data_log << std::endl << info << "SDR Server Running..." << std::endl << std::endl;
 
         //-----------------------------------------------------------------------------
         // main loop
@@ -633,14 +684,14 @@ int main(int argc, char** argv)
             
             // parse the first part of the message to get the command
             error_msg = "Received multipart message with " + std::to_string(num_messages.value()) + " messages"; 
-            std::cout << error_msg << std::endl;
-            //data_log.log_info(error_msg);
-            
+            std::cout << info << error_msg << std::endl;
+            data_log << info << error_msg << std::endl;
+
             // place the command messages into the command vector
             command.resize(command_messages[0].size() / sizeof(uint32_t));
             std::memcpy(command.data(), command_messages[0].data(), command_messages[0].size());
-            std::cout << "message command id: " << num2str(command[0], "0x%08X") << std::endl << std::endl;
-            //data_log.log_info("message command id: " + num2str(command[0], "0x%08X"));
+            std::cout << info << "Message command id: " << num2str(command[0], "0x%08X") << std::endl << std::endl;
+            data_log << info << "Message command id: " << num2str(command[0], "0x%08X") << std::endl << std::endl;
 
             // if there are more than one message in a multipart message try to parse the message
             if (num_messages.value() > 1)
@@ -648,13 +699,14 @@ int main(int argc, char** argv)
                 // parse the message into the message_data vector
                 message_data.resize(command_messages[1].size());               // / sizeof(uint8_t)
                 std::memcpy(message_data.data(), command_messages[1].data(), command_messages[1].size());
-                std::cout << "data size: " << message_data.size() << std::endl;
+                std::cout << info << "Data size (bytes): " << message_data.size() << std::endl;
+                data_log << info << "Data size (bytes): " << message_data.size() << std::endl;
 
                 // TODO: Debug
-                for (idx = 0; idx < message_data.size(); ++idx)
-                    std::cout << (uint16_t)message_data[idx] << " ";
+                //for (idx = 0; idx < message_data.size(); ++idx)
+                //    std::cout << (uint16_t)message_data[idx] << " ";
 
-                std::cout << std::endl << std::endl;
+                //std::cout << std::endl << std::endl;
             }
 
             // check the command value and perform some action
@@ -670,9 +722,9 @@ int main(int argc, char** argv)
             case static_cast<uint32_t>(BLADE_MSG_ID::GET_VERSION):
                 msg_result.resize(4);
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::GET_VERSION);
-                msg_result[1] = MAJOR_REVISION;
-                msg_result[2] = MINOR_REVISION;
-                msg_result[3] = FIX_REVISION;
+                msg_result[1] = SDR_SERVER_MAJOR_VERSION;
+                msg_result[2] = SDR_SERVER_MINOR_VERSION;
+                msg_result[3] = SDR_SERVER_BUILD_VERSION;
                 break;
 
             case static_cast<uint32_t>(BLADE_MSG_ID::SELECT_MODE):
@@ -731,7 +783,8 @@ int main(int argc, char** argv)
                 blade_status |= bladerf_set_frequency(dev, tx, tx_hops[0].freq);
                 if (blade_status != 0)
                 {
-                    std::cout << "Error configuring channel: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                    std::cout << warning << "Error configuring channel: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                    data_log << warning << "Error configuring channel: " << std::string(bladerf_strerror(blade_status)) << std::endl;
                 }
 
                 if (scan_time == 0.0)
@@ -742,6 +795,7 @@ int main(int argc, char** argv)
                     }
                 }
 
+                std::cout << info << "Config:" << std::endl;
                 std::cout << "------------------------------------------------------------------" << std::endl;
                 std::cout << "Transmitter:" << std::endl;
                 std::cout << "  start freq:  " << tx_start_freq << std::endl;
@@ -754,6 +808,20 @@ int main(int argc, char** argv)
                 std::cout << "  tx1_gain:    " << tx_gain << std::endl;
                 std::cout << "------------------------------------------------------------------" << std::endl << std::endl;
 
+                data_log << info << "Config:" << std::endl;
+                data_log << "------------------------------------------------------------------" << std::endl;
+                data_log << "Transmitter:" << std::endl;
+                data_log << "  start freq:  " << tx_start_freq << std::endl;
+                data_log << "  stop freq:   " << tx_stop_freq << std::endl;
+                data_log << "  freq step:   " << tx_step << std::endl;
+                data_log << "  num hops:    " << num_tx_hops << std::endl;
+                data_log << "  hop type:    " << tx_hop_type << std::endl;
+                data_log << "  sample_rate: " << tx_sample_rate << std::endl;
+                data_log << "  bw:          " << tx_bw << std::endl;
+                data_log << "  tx1_gain:    " << tx_gain << std::endl;
+                data_log << "------------------------------------------------------------------" << std::endl << std::endl;
+
+
                 msg_result.resize(2);
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::CONFIG_TX);
                 msg_result[1] = (uint32_t)(blade_status == 0);
@@ -763,12 +831,12 @@ int main(int argc, char** argv)
                 recieve = false;
                 tmp_enable = (bool)command[1];
 
+                std::cout << info << "Entered ENABLE_AMP state: " << tmp_enable << std::endl;
+                data_log << info << "Entered ENABLE_AMP state: " << tmp_enable << std::endl;
 #if defined(WITH_RPI)
                 // set the amp gpio pin
                 gpio_value = (tmp_enable == true) ? gpio_on : gpio_off;
                 rf_gpio_line.set_value(rf_ctrl_pin, gpio_value);
-#else
-                std::cout << "Entered ENABLE_AMP state" << std::endl;
 #endif
                 std::this_thread::sleep_for(std::chrono::milliseconds(1100));
 
@@ -789,7 +857,8 @@ int main(int argc, char** argv)
                 if(transmit == true)
                     tx_cv.notify_one();
 
-                std::cout << "transmit: " << transmit << std::endl;
+                std::cout << info << "Transmit: " << transmit << std::endl;
+                data_log << info << "Transmit: " << transmit << std::endl;
 
                 msg_result.resize(2);
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::ENABLE_TX);
@@ -817,7 +886,8 @@ int main(int argc, char** argv)
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::ENABLE_SCAN);
                 msg_result[1] = static_cast<uint32_t>(scan);
 
-                std::cout << "scan: " << scan << std::endl;
+                std::cout << info << "Scan: " << scan << std::endl;
+                data_log << info << "Scan: " << scan << std::endl;
                 break;
 
             case static_cast<uint32_t>(BLADE_MSG_ID::GET_IQ_FILES):
@@ -864,11 +934,13 @@ int main(int argc, char** argv)
                     iq_filename.clear();
                     iq_filename.resize(message_data.size());
                     std::copy(message_data.begin(), message_data.end(), iq_filename.begin());
-                    std::cout << "iq_filename: " << iq_file_path + iq_filename << std::endl;
+                    std::cout << info << "IQ filename: " << iq_file_path + iq_filename << std::endl;
+                    data_log << info << "IQ filename: " << iq_file_path + iq_filename << std::endl;
 
                     samples = read_iq_data<int16_t>(iq_file_path + iq_filename);
                     num_tx_samples = samples.size();
-                    std::cout << "num_tx_samples: " << num_tx_samples << std::endl;
+                    std::cout << info << "num_tx_samples: " << num_tx_samples << std::endl;
+                    data_log << info << "num_tx_samples: " << num_tx_samples << std::endl;
                 }
 
                 // return transmit to its former status
@@ -909,38 +981,46 @@ int main(int argc, char** argv)
         rf_gpio_line.release();
         gpio_chip.close();
 
-        std::cout << "Closing GPIO..." << std::endl;
+        std::cout << info << "Closing GPIO..." << std::endl;
+        data_log << info << "Closing GPIO..." << std::endl;
 #endif
 
         // close the server
-        std::cout << std::endl << "Closing the SDR Server..." << std::endl;
+        std::cout << std::endl << info << "Closing the SDR Server..." << std::endl;
+        data_log << std::endl << info << "Closing the SDR Server..." << std::endl;
         close_server(bladerf_context, { &bladerf_socket, &bladerf_pub_socket });
 
         // disable the tx channel RF frontend
-        std::cout << "Disabling BladeRF frontend..." << std::endl;
         blade_status = bladerf_enable_module(dev, BLADERF_TX, false);
         blade_status = bladerf_enable_module(dev, BLADERF_RX, false);
+        std::cout << info << "Disabled BladeRF frontend..." << std::endl;
+        data_log << info << "Disabled BladeRF frontend..." << std::endl;
 
     }
     catch (std::exception e)
     {
-        std::cout << "error: " << e.what() << std::endl;
-
+        std::cout << error(__FILE__, __LINE__) << "Error: " << e.what() << std::endl;
+        data_log << error(__FILE__, __LINE__) << "Error: " << e.what() << std::endl;
 #if defined(WITH_RPI)
         // close the gpio line
         rf_gpio_line.set_value(rf_ctrl_pin, gpio_off);
         rf_gpio_line.release();
         gpio_chip.close();
 
-        std::cout << "Closing GPIO..." << std::endl;
+        std::cout << info << "Closing GPIO..." << std::endl;
+        data_log << info << "Closing GPIO..." << std::endl;
 #endif
 
     }
 
-    std::cout << "Closing BladeRF..." << std::endl;
+    std::cout << info << "Closing BladeRF..." << std::endl;
+    data_log << info << "Closing BladeRF..." << std::endl;
     bladerf_close(dev);
 
-    std::cout << "Press Enter to close..." << std::endl;
+    // close the data logger file
+    data_log.close();
+
+    std::cout << info << "Press Enter to close..." << std::endl;
     //std::cin.ignore();    
     
     return 0;
