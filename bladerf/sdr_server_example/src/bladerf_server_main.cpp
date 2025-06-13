@@ -61,6 +61,8 @@
 //const double pi = 3.14159265358979323846;
 //const double pi2 = 2 * 3.14159265358979323846;
 
+std::string iq_file_path;
+
 atomic<bool> is_running = false;
 
 atomic<bool> transmit_thread_running = false;
@@ -78,12 +80,17 @@ atomic<bool> recieve = false;
 std::mutex rx_mutex;
 std::condition_variable rx_cv;
 
+atomic<bool> switch_thread_running = false;
+atomic<uint16_t> current_switch_setting = 0;
+
 uint32_t blade_timeout_ms = 10000;
 
 #if defined(WITH_RPI)
 const gpiod::line::value gpio_on = gpiod::line::value::ACTIVE;
 const gpiod::line::value gpio_off = gpiod::line::value::INACTIVE;
 const gpiod::line::offset rf_ctrl_pin = 20;
+
+const gpiod::line::offsets switch_lines = { 27, 17, 4, 3, 2 };
 #endif
 
 std::vector<hop_parameters> tx_hops;
@@ -108,6 +115,79 @@ void sig_handler(int sig_num)
     }
 
 }   // end of sig_handler
+
+
+#if defined(WITH_RPI)
+
+//-----------------------------------------------------------------------------
+inline void poll_switch_thread(gpiod::request_builder &request, std::vector<std::complex<int16_t>>& samples, std::vector<std::string> &iq_file_list)
+{
+    uint32_t idx;
+    gpiod::line::values switch_values;
+    uint16_t tmp_switch_value = 0;
+    bool current_transmit_status = false;
+
+    std::cout << info << "Switch thread started." << std::endl;
+
+    // main thread loop
+    while (switch_thread_running == true)
+    {
+        tmp_switch_value = 0;
+        switch_values = request.get_values();
+
+        // cycle through the switch pins 
+        for (idx = 0; idx < switch_values.size(); ++idx)
+        {
+            // first match to gpio_on is the one
+            if (switch_values[idx] == gpio_on)
+            {
+                tmp_switch_value = idx+1;
+                continue;
+            }
+        }
+
+        // check for a state change
+        if (tmp_switch_value != current_switch_value)
+        {
+            current_switch_value = tmp_switch_value;
+            std::cout << info << "Switch value: " << current_switch_value << std::endl;
+
+            if (current_switch_value == 0)
+            {
+                transmit = false;
+            }
+            else
+            {
+                current_transmit_status = transmit;
+                transmit = false;
+
+                // wait for a little for the transmit cycle to finish
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+                // load the new IQ file
+                std::cout << info << "IQ filename: " << iq_file_list[idx-1] << std::endl;
+                data_log << info << "IQ filename: " << iq_file_list[idx-1] << std::endl;
+
+                samples = read_iq_data<int16_t>(iq_file_path + iq_file_list[idx - 1]);
+                num_tx_samples = samples.size();
+
+                std::cout << info << "num_tx_samples: " << num_tx_samples << std::endl;
+                data_log << info << "num_tx_samples: " << num_tx_samples << std::endl;
+
+                transmit = current_transmit_status;
+            }
+        }
+
+        // sleep and then beging polling again
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    }
+
+    std::cout << info << "Switch thread stopped." << std::endl;
+
+}   // end of ploo_switch_thread
+
+#endif
 
 //-----------------------------------------------------------------------------
 inline void publisher_thread(zmq::socket_t &pub_socket) //zmq::context_t& context)
@@ -316,7 +396,6 @@ int main(int argc, char** argv)
 
     std::vector<std::complex<int16_t>> samples;
     std::string iq_filename;
-    std::string iq_file_path;
     std::vector<std::string> iq_file_list;
 
     std::string tmp_file;
