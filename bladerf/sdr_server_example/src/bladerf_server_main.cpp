@@ -855,6 +855,13 @@ int main(int argc, char** argv)
                 tx_hops = get_hop_parameters(dev, tx, tx_start_freq, tx_stop_freq, tx_step);
                 num_tx_hops = std::max(0U, (uint32_t)tx_hops.size());
 
+                blade_status = bladerf_set_sample_rate(dev, tx, tx_sample_rate, &tx_sample_rate);
+                if (blade_status != 0)
+                {
+                    std::cout << warning << "Error setting sample rate: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                    data_log << warning << "Error setting sample rate: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                }
+                
                 //blade_status = config_blade_channel(dev, tx, tx_hops[0].freq, tx_sample_rate, tx_bw, tx_gain);
                 blade_status = bladerf_set_gain(dev, tx, tx_gain);
                 blade_status = bladerf_get_gain(dev, tx, &tx_gain);
