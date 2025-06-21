@@ -17,7 +17,7 @@
 <head>
     <title>SDR Server Interface</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <!-- {{ turbo() }} -->
+    {{ turbo() }}
 </head>
 <body>
 
@@ -130,17 +130,17 @@
         </div>
     </div>
 
-    <div class="col2 row2">
+   <div class="col2 row2">
             {% include "server_status.html" %}
-            <h4>Message:</h4>
-        <turbo-frame id="message_frame">
+            
+        <!-- <turbo-frame id="message_frame">
             <div class="message_section">
 
             <form method="POST" data-turbo="true">
-            <pre>{{ message_label }}</pre>
+            <pre>{{ message_log }}</pre>
             </form>
         </div>
-        </turbo-frame>
+        </turbo-frame> -->
     </div>
 
     <!-- <div class="colSpan2 row3"><div>4</div><div>5</div></div> -->

@@ -274,8 +274,11 @@ def update_status():
             try:
                 time.sleep(1)
                 server_status = sdr_publisher.recv_string()
-                res = turbo.push(turbo.replace(render_template('server_status.html', server_status=server_status, message_label=message_label),"status"))
-
+                #print(server_status)
+                turbo.push(turbo.replace(render_template('server_status.html', server_status_msg=server_status, message_log=message_label), target="status"))
+                #turbo.update(render_template("server_status.html",message_log=message_label), target="message_frame")
+                #print(message_label)
+                #print("TEST\n")
             except NameError:
                 tmp_status = ""
 
@@ -302,9 +305,9 @@ if __name__ == '__main__':
     gain_str = "66"
     scan_str = "4.00"
     server_status = ""
-    # th = threading.Thread(target=update_status)
-    # th.daemon = True
-    # th.start()
+    th = threading.Thread(target=update_status)
+    th.daemon = True
+    th.start()
 
     # run() method of Flask class runs the application
     # on the local development server.

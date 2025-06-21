@@ -1,8 +1,16 @@
 <div id="status" class="status1">
-    <table>
+    <table style="color: {{state_color}};">
         <tr><th>STATUS</th></tr>
         <tr><td>
-            {{ server_status }}
+            {{server_status_msg}}
         </td></tr>
     </table>
+    <h4>Message:</h4>
+    <turbo-frame id="message_frame">
+        <div class="message_section">
+            <form method="POST" data-turbo="true">
+                <pre>{{ message_log }}</pre>
+            </form>
+        </div>
+    </turbo-frame>
 </div>
