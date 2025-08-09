@@ -68,9 +68,9 @@ std::unique_ptr<SDR_BASE> SDR_BASE::build()
     bladerf_dev->init_rx();
 
     bladerf_dev->set_rx_frequency(104000000);
-    bladerf_dev->set_rx_samplerate(1000000);
+    bladerf_dev->set_rx_samplerate(882000);
     bladerf_dev->set_rx_gain(66, BLADERF_GAIN_MANUAL);
-    bladerf_dev->set_rx_bandwidth(1000000);
+    bladerf_dev->set_rx_bandwidth(882000);
 
     //bladerf_dev->setSamplePublisher(std::move(config.Bladerf.samplePublisher));
     return std::unique_ptr<SDR_BASE>(bladerf_dev.release());
@@ -115,28 +115,28 @@ int main(int argc, char** argv)
     //std::string filename = "../../rx_record/recordings/096M600_1M__10s_test.bin"; 
     //std::ifstream input_data(filename, std::ios::binary);
 
-    uint8_t test_case = 1;
+    uint8_t test_case = 0;
 
     switch (test_case)
     {
     // NOAA radio
     case 0:
-        fs = 1000000;
-        rx_freq = 162550000;
-        rx_bw = 1000000;
-        f_offset = 50000;
-        channel_bw = 50000;
-        audio_freq = 10000;
-        n_taps = 101;
+        fs = 882000;
+        rx_freq = 318100000;
+        rx_bw = 88200;
+        f_offset = 0;
+        channel_bw = 0;
+        audio_freq = 44100;
+        n_taps = 31;
         break;
 
     // FM radio station
     case 1:
         fs = 1000000;
-        rx_freq = 103800000;
+        rx_freq = 104300000;
         rx_bw = 1000000;
-        f_offset =   100000;
-        channel_bw = 200000;
+        f_offset = 0;
+        channel_bw = 0;
         audio_freq = 44100;
         n_taps = 101;
         break;
@@ -190,7 +190,8 @@ int main(int argc, char** argv)
 
     std::cout << std::endl;
 
-    try{
+    try
+    {
 
         std::unique_ptr<SDR_BASE> sdr = SDR_BASE::build();
 
@@ -200,45 +201,46 @@ int main(int argc, char** argv)
         sdr->set_rx_frequency(rx_freq);
         sdr->set_rx_samplerate(fs);
         sdr->set_rx_gain(66, BLADERF_GAIN_MANUAL);
-        sdr->set_rx_bandwidth(fs);
+        sdr->set_rx_bandwidth(rx_bw);
 
         // decimation rate
-        int64_t dec_rate = (int64_t)(fs / (float)channel_bw);
+        int32_t dec_rate = 20;
 
         // calculate the new sampling rate based on the original and the decimated sample rate
-        float fs_d = fs / (float)dec_rate;
+        float fs_audio = fs / (float)dec_rate;
 
         // build the decimation sequence
         af::array dec_seq = af::seq(0, num_samples, dec_rate);
 
         // low pass filter coefficients
         std::vector<float> lpf = DSP::create_fir_filter<float>(n_taps, (channel_bw / 2.0) / (float)fs, &DSP::hann_window);
+        
         // create the low pass filter from the filter coefficients
         af::array af_lpf = af::array(lpf.size(), (float*)lpf.data());
 
         // find a decimation rate to achieve audio sampling rate between for 10 kHz
-        int64_t dec_audio = (int64_t)(fs_d / (float)audio_freq);
-        float fs_audio = fs_d / (float)dec_audio;
+        //int64_t dec_audio = (int64_t)(fs_d / (float)audio_freq);
+        //float fs_audio = fs_d / (float)dec_audio;
 
         // scaling for tangent
-        float phasor_scale = 1 / ((2 * M_PI) / (fs_d / channel_bw));
+        //float phasor_scale = 1 / ((2 * M_PI) / (fs_d / channel_bw));
 
         // audio decimation sequence
-        af::array seq_audio = af::seq(0, dec_seq.dims(0), dec_audio);
+        af::array seq_audio = af::seq(0, dec_seq.dims(0), dec_rate);
 
-        std::vector<float> lpf_de = DSP::create_fir_filter<float>(64, 1.0f/(float)(fs_d * 75e-6), &DSP::rectangular_window);
-        af::array af_lpf_de = af::array(lpf_de.size(), (float*)lpf_de.data());
+        //std::vector<float> lpf_de = DSP::create_fir_filter<float>(64, 1.0f/(float)(fs_d * 75e-6), &DSP::rectangular_window);
+        //af::array af_lpf_de = af::array(lpf_de.size(), (float*)lpf_de.data());
 
-        std::vector<float> lpf_a = DSP::create_fir_filter<float>(n_taps, (audio_freq / 2.0) / (float)fs_d, &DSP::hann_window);
-        af::array af_lpf_a = af::array(lpf_a.size(), (float*)lpf_a.data());
+        //std::vector<float> lpf_a = DSP::create_fir_filter<float>(n_taps, (audio_freq / 2.0) / (float)fs_d, &DSP::hann_window);
+        //af::array af_lpf_a = af::array(lpf_a.size(), (float*)lpf_a.data());
 
         // A*exp(j*3*pi*t) = A*cos(3*pi*t) + j*sin(3*pi*t)
         // generate the frequency rotation vector to center the offset frequency 
-        std::vector<std::complex<float>> fc_rot(num_samples, 0);
-        for (idx = 0; idx < num_samples; ++idx)
-        {
-            fc_rot[idx] = std::exp(-2.0 * 1i * M_PI * (f_offset / (double)fs) * (double)idx);
-        }
+        //std::vector<std::complex<float>> fc_rot(num_samples, 0);
+        //for (idx = 0; idx < num_samples; ++idx)
+        //{
+        //    fc_rot[idx] = std::exp(-2.0 * 1i * M_PI * (f_offset / (double)fs) * (double)idx);
+        //}
 
         double freq_step = (fs)/(double)num_samples;
 
@@ -268,9 +270,9 @@ int main(int argc, char** argv)
         std::cout << "f_offset:   " << f_offset << std::endl;
         std::cout << "channel_bw: " << channel_bw << std::endl;
         std::cout << "dec_rate:   " << dec_rate << std::endl;
-        std::cout << "fs_d:       " << fs_d << std::endl;
+        //std::cout << "fs_d:       " << fs_d << std::endl;
         std::cout << "audio_freq: " << audio_freq << std::endl;
-        std::cout << "dec_audio:  " << dec_audio << std::endl;
+        //std::cout << "dec_audio:  " << dec_audio << std::endl;
         std::cout << "fs_audio:   " << fs_audio << std::endl;
         std::cout << "------------------------------------------------------------------" << std::endl << std::endl;
 
@@ -294,20 +296,20 @@ int main(int argc, char** argv)
             x4 = x3(dec_seq);
 
             // polar discriminator - x4(2:end).*conj(x4(1:end - 1));
-            x5 = x4(af::seq(1, af::end, 1)) * af::conjg(x4(af::seq(0, -2, 1)));
-            x5 = af::atan2(af::imag(x5), af::real(x5)) * phasor_scale;// .as(f32);
+            //x5 = x4(af::seq(1, af::end, 1)) * af::conjg(x4(af::seq(0, -2, 1)));
+            //x5 = af::atan2(af::imag(x5), af::real(x5)) * phasor_scale;// .as(f32);
 
             // run the audio through the low pass de-emphasis filter
-            x6 = af::fir(af_lpf_de, x5);
+            //x6 = af::fir(af_lpf_de, x5);
 
             // run the audio through a second low pass filter before decimation
-            x6 = af::fir(af_lpf_a, x6);
+            //x6 = af::fir(af_lpf_a, x6);
 
             // decimate the audio sequence
-            x7 = x6(seq_audio);
+            //x7 = x6(seq_audio);
 
             // scale the audio from -1 to 1
-            x7 = (x7 * (1.0 / (af::max<float>(af::abs(x7)))));
+            x7 = (x4 * (1.0 / (af::max<float>(af::abs(x4)))));
 
             // shift to 0 to 2 and then scale by 60
             x7 = ((x7+1) * 30).as(af::dtype::u8);

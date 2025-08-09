@@ -14,14 +14,15 @@
 # 5. To compile:
 # windows: cmake --build . --config Release
 # linux: cmake --build . --config Release -- -j4
-#
+# 
 
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.18)
 
 PROJECT(bladerf_fm_demod)
 set(exe_name "blade_fm_demod")
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(PLATFORM "$ENV{PLATFORM}" CACHE INTERNAL "Copied from environment variable")
 if("${PLATFORM}" STREQUAL "")

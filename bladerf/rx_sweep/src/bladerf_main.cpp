@@ -74,18 +74,15 @@ std::string convert_metric_prefix(double num)
 }
 
 //-----------------------------------------------------------------------------
-void sig_handler(int signo)
+void signal_handler(int sig_num)
 {
-    if (signo == SIGINT)
+    if ((sig_num == SIGINT) || (sig_num == SIGTERM))
     {
-        fprintf(stderr, "received SIGINT\n");
+        //fprintf(stderr, "received SIGINT\n");
+        std::cout << std::endl << "Received SIGINT/SIGTERM: " << sig_num << std::endl << "Shutting down..." << std::endl;
         is_running = false;
-        //fprintf(stderr, "received another SIGINT, aborting\n");
-        //abort();
-
     }
-}
-
+}   // end of signal_handler
 
 // ----------------------------------------------------------------------------
 int main(int argc, char** argv)
@@ -124,6 +121,7 @@ int main(int argc, char** argv)
 
     std::ofstream data_file;
 
+    //-----------------------------------------------------------------------------
     if (argc < 2)
     {
         std::cout << "You must supply a yaml parameter file.  Press Enter to close." << std::endl;
@@ -137,12 +135,13 @@ int main(int argc, char** argv)
     parse_input(param_filename, rx_freq_range, sample_rate, duration, rx1_gain, save_location);
 
     num_samples = (uint64_t)(sample_rate * duration);
-    rx_bw = 50000000;
+    rx_bw = sample_rate;
 
     int num_devices = bladerf_get_device_list(&device_list);
 
     bladerf_num = select_bladerf(num_devices, device_list);
 
+    //-----------------------------------------------------------------------------
     if (bladerf_num < 0)
     {
         std::cout << "could not detect any bladeRF devices..." << std::endl;
@@ -152,7 +151,8 @@ int main(int argc, char** argv)
 
     std::cout << std::endl;
 
-    try{
+    try
+    {
         get_current_time(sdate, stime);
 
       
@@ -207,16 +207,23 @@ int main(int argc, char** argv)
         // setup signal handler
         is_running = true;
 
-        if (signal(SIGINT, sig_handler) == SIG_ERR)
+        //-----------------------------------------------------------------------------
+        // initialize a signal handler for graceful exit
+        if (signal(SIGINT, signal_handler) == SIG_ERR)
         {
             std::cerr << "Unable to catch SIGINT signals" << std::endl;
         }
+        // handle SIGTERM signals
+        if (signal(SIGTERM, signal_handler) == SIG_ERR)
+        {
+            std::cerr << "Unable to catch SIGTERM signals" << std::endl;
+        }
 
+        std::cout << "Ready to record.  Press enter to start:" << std::endl;
+        std::cin.ignore();
+        
         while(is_running)
         {
-
-            std::cout << "Ready to record.  Press enter to start:" << std::endl;
-            std::cin.ignore();
 
             get_current_time(sdate, stime);
 
@@ -253,6 +260,10 @@ int main(int argc, char** argv)
                 data_file.close();
 
             }
+
+            std::cout << "Ready to record.  Press enter to start:" << std::endl;
+            std::cin.ignore();
+
         }
         // disable the rx channel RF frontend
         blade_status = bladerf_enable_module(dev, BLADERF_RX, false);

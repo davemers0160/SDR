@@ -16,15 +16,13 @@
 # linux: cmake --build . --config Release -- -j4
 #
 
+cmake_minimum_required(VERSION 3.18)
 
-cmake_minimum_required(VERSION 2.8.12)
-
-PROJECT(bladerf_rx_sweep)
-set(exe_name "blade_rx")
-
-set(default_build_type "Release")
+PROJECT(bladerf_am_demod)
+set(exe_name "blade_am_demod")
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(PLATFORM "$ENV{PLATFORM}" CACHE INTERNAL "Copied from environment variable")
 if("${PLATFORM}" STREQUAL "")
@@ -37,40 +35,14 @@ message("Platform: " ${PLATFORM})
 string(FIND ${PROJECT_SOURCE_DIR} "/" INDEX REVERSE)
 string(SUBSTRING ${PROJECT_SOURCE_DIR} 0 ${INDEX} PR_ROOT)
 
-#------------------------------------------------------------------------------
-if(WIN32)
-    if(${PLATFORM} STREQUAL "Laptop")
-        set(COMMON_ROOT "D:/Common")
-        set(RYML_ROOT "D:/Projects/rapidyaml")
-    elseif(${PLATFORM} STREQUAL "LaptopN")
-        set(COMMON_ROOT "C:/Projects/Common")
-        set(RYML_ROOT "C:/Projects/rapidyaml")
-    elseif(${PLATFORM} STREQUAL "Laptop_Beast")
-        set(COMMON_ROOT "D:/Projects/Common")
-        set(RYML_ROOT "D:/Projects/rapidyaml")
-    else()
-        set(COMMON_ROOT "C:/Projects/Common")
-        set(RYML_ROOT "C:/Projects/rapidyaml")
-    endif()
+include("${PR_ROOT}/common/platform_paths.cmake")
 
-    set(RYML_LIB "${RYML_ROOT}/build/Release/ryml.lib")
+if(WIN32)
 
 else()
-    set(HOME "$ENV{HOME}" CACHE INTERNAL "Copied from environment variable")
-
-    if(${PLATFORM} STREQUAL "HPC")
-        set(COMMON_ROOT "${HOME}/Projects/Common")
-    elseif(${PLATFORM} STREQUAL "MainGear")
-        set(COMMON_ROOT "${HOME}/Projects/Common")
-    else()
-        set(COMMON_ROOT "${HOME}/Projects/Common")
-    endif()
-
-    set(RYML_LIB "/usr/local/lib/libryml.a")
-
+    
 endif()
 
-#------------------------------------------------------------------------------
 include(${COMMON_ROOT}/cmake_utils/use_cpp_11.cmake)
 include(${COMMON_ROOT}/cmake_utils/use_sse_avx.cmake)
 
@@ -83,54 +55,56 @@ set(project_includes
     "include" 
     "${PR_ROOT}/common/include"
     "${COMMON_ROOT}/include"
-    "${RYML_ROOT}/include"
     )
 
-set(project_libs ${project_libs} 
-    ${RYML_LIB}
-    )
-    
-#------------------------------------------------------------------------------
+message(" ")
 include(${COMMON_ROOT}/cmake_utils/find_bladerf.cmake)
 if(BLADERF_FOUND)
     set(project_includes ${project_includes} ${BLADERF_INCLUDE_DIRS})
     set(project_libs ${project_libs} ${BLADERF_LIBS})
 endif()
 
+find_package(ArrayFire)
+if(ArrayFire_Unified_FOUND)
+    set(project_includes ${project_includes} ${ArrayFire_INCLUDE_DIRS})
+    set(project_libs ${project_libs} ArrayFire::af)
+    message("ArrayFire_Unified found!")
+    add_definitions(-DUSE_ARRAYFIRE)
+else()
+    message("ArrayFire_Unified not found...")
+endif()
+
 message(" ")
-message(STATUS "--------------------------------------------------------")
-message(STATUS "Source Files: ")
+message("--------------------------------------------------------------------------------")
+message("Source Files: ")
 foreach(S ${SOURCES})
-    message(STATUS "  " ${S})
+    message("  " ${S})
 endforeach()
-message(STATUS "--------------------------------------------------------")
+message("--------------------------------------------------------------------------------")
 
 message(" ")
 
-message(STATUS "--------------------------------------------------------")
-message(STATUS "Project Includes: ")
+message("--------------------------------------------------------------------------------")
+message("Project Includes: ")
 foreach(S ${project_includes})
-    message(STATUS "  " ${S})
+    message("  " ${S})
 endforeach()
-message(STATUS "--------------------------------------------------------")
+message("--------------------------------------------------------------------------------")
 
 message(" ")
 
-message(STATUS "--------------------------------------------------------")
-message(STATUS "Project Libs: ")
+message("--------------------------------------------------------------------------------")
+message("Project Libraries: ")
 foreach(S ${project_libs})
-    message(STATUS "  " ${S})
+    message("  " ${S})
 endforeach()
-message(STATUS "--------------------------------------------------------")
+message("--------------------------------------------------------------------------------")
 
 message(" ")
 
-#------------------------------------------------------------------------------
 include_directories(${project_includes})
 add_executable(${exe_name} ${SOURCES})
 target_link_libraries(${exe_name} ${project_libs})
-
-add_definitions(-DUSE_RAPIDYAML)
 
 if(WIN32)
     message("MSVC Version: " ${MSVC_VERSION})
