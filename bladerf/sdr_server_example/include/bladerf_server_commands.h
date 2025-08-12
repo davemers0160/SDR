@@ -50,6 +50,7 @@ enum class BLADE_MSG_ID : uint32_t
     SET_RX_GAIN             = (BLADERF_SERVER_ID | 0x00000103),
     //SET_RX_SAMPLERATE       = (BLADERF_SERVER_ID | 0x00000104),
     SET_RX_BANDWIDTH        = (BLADERF_SERVER_ID | 0x00000105),
+    CAPTURE_SAMPLES         = (BLADERF_SERVER_ID | 0x00000106),
     
     // TX Commands
     CONFIG_TX               = (BLADERF_SERVER_ID | 0x00000200),     /* Start Freq (2-uint32 MSB), Stop Freq (2-uint32 MSB), samplerate (uint32), bw (uint32), gain (int32) */

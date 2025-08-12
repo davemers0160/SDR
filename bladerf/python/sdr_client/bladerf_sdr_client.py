@@ -30,6 +30,8 @@ class bladerf_sdr_client:
     SET_RX_GAIN             = (BLADERF_SERVER_ID | 0x00000103)
     #SET_RX_SAMPLERATE       = (BLADERF_SERVER_ID | 0x00000104)
     SET_RX_BANDWIDTH        = (BLADERF_SERVER_ID | 0x00000105)
+    CAPTURE_SAMPLES         = (BLADERF_SERVER_ID | 0x00000106)
+
 
     CONFIG_TX               = (BLADERF_SERVER_ID | 0x00000200)
     ENABLE_TX               = (BLADERF_SERVER_ID | 0x00000201)
@@ -134,7 +136,6 @@ class bladerf_sdr_client:
         stf_32L = (start_frequency & np.uint64(0x00FFFFFFFF)).astype(np.uint32)
         spf_32M = (stop_frequency >> np.uint64(32)).astype(np.uint32)
         spf_32L = (stop_frequency & np.uint64(0x00FFFFFFFF)).astype(np.uint32)
-        # sct_32 = (sct_32).astype(np.uint32)
         sct_32 = scan_time.view(np.uint32).copy()
 
         # create the command message and convert to bytearray
@@ -158,7 +159,39 @@ class bladerf_sdr_client:
             print(f"An error occurred sending/receiving the request: {e}")
 
         finally:
-            return result       
+            return result
+
+    # ------------------------------------------------------------------------------
+    def config_rx(self, start_frequency: np.uint64, stop_frequency: np.uint64, frequency_step: np.int32,
+                  sample_rate: np.uint32, bw: np.uint32, gain: np.int32):
+
+        stf_32M = (start_frequency >> np.uint64(32)).astype(np.uint32)
+        stf_32L = (start_frequency & np.uint64(0x00FFFFFFFF)).astype(np.uint32)
+        spf_32M = (stop_frequency >> np.uint64(32)).astype(np.uint32)
+        spf_32L = (stop_frequency & np.uint64(0x00FFFFFFFF)).astype(np.uint32)
+
+        # create the command message and convert to bytearray
+        command = np.array([self.CONFIG_RX, stf_32M, stf_32L, spf_32M, spf_32L, frequency_step, sample_rate, bw, gain]).astype(np.uint32)
+        cmd_fs = "<" + str(command.size) + "I"
+        command_msg = struct.pack(cmd_fs, *command)
+
+        result = -1
+        try:
+            # send the command message
+            self.socket.send(command_msg)
+
+            response = self.socket.recv()
+            res_fs = "<" + str(len(response) // 4) + "I"
+            response = np.array(struct.unpack(res_fs, response)).astype(np.uint32)
+
+            if (response[0] == np.uint32(self.CONFIG_RX)):
+                result = response[1]
+
+        except Exception as e:
+            print(f"An error occurred sending/receiving the request: {e}")
+
+        finally:
+            return result
 
     #------------------------------------------------------------------------------
     def enable_amp(self, status: bool):
@@ -304,25 +337,107 @@ class bladerf_sdr_client:
 
 
     #------------------------------------------------------------------------------
-    def set_iq_savepath(self, file_path: str):
-        # create the command message and convert to bytearray
-        command = np.uint32(self.SET_SAVE_LOCATION)
-        command_msg = struct.pack("<I", command)
+    # def set_iq_savepath(self, file_path: str):
+    #     # create the command message and convert to bytearray
+    #     command = np.uint32(self.SET_SAVE_LOCATION)
+    #     command_msg = struct.pack("<I", command)
+    #
+    #     # fp_array = bytearray()
+    #     fp_array = file_path.encode("utf-8")
+    #
+    #     result = -1
+    #     try:
+    #         # send the command message and the data as a multipart message
+    #         self.socket.send(command_msg, zmq.SNDMORE)
+    #         self.socket.send(fp_array)
+    #
+    #         response = self.socket.recv()
+    #         response = np.array(struct.unpack("<2I", response)).astype(np.uint32)
+    #
+    #         if (response[0] == command):
+    #             result = response[1].astype(np.int32)
+    #
+    #     except Exception as e:
+    #         print(f"An error occurred sending/receiving the request: {e}")
+    #
+    #     finally:
+    #         return result
 
-        # fp_array = bytearray()
-        fp_array = file_path.encode("utf-8")
+    #------------------------------------------------------------------------------
+    def rx_capture_samples(self, capture_time: np.float32):
+        # create the command message and convert to bytearray
+        command = np.array([self.CAPTURE_SAMPLES, capture_time.view(np.uint32).copy()]).astype(np.uint32)
+        cmd_fs = "<" + str(command.size) + "I"
+        command_msg = struct.pack(cmd_fs, *command)
+
+        result = -1
+        iq_filename = ""
+        try:
+            # send the command message
+            self.socket.send(command_msg)
+
+            response = self.socket.recv()
+            res_fs = "<" + str(len(response)//4) + "I"
+            response = np.array(struct.unpack(res_fs, response)).astype(np.uint32)
+
+            if (response[0] == command[0]):
+                result = response[1].astype(np.int32)
+                if result == 1:
+                    iq_filename = ''.join([chr(x) for x in response[2:]])
+
+        except Exception as e:
+            print(f"An error occurred sending/receiving the request: {e}")
+
+        finally:
+            return result, iq_filename
+
+    # ------------------------------------------------------------------------------
+    def rx_set_freq(self, start_frequency: np.uint64):
+
+        stf_32M = (start_frequency >> np.uint64(32)).astype(np.uint32)
+        stf_32L = (start_frequency & np.uint64(0x00FFFFFFFF)).astype(np.uint32)
+
+        # create the command message and convert to bytearray
+        command = np.array([self.SET_RX_FREQ, stf_32M, stf_32L]).astype(np.uint32)
+        cmd_fs = "<" + str(command.size) + "I"
+        command_msg = struct.pack(cmd_fs, *command)
 
         result = -1
         try:
-            # send the command message and the data as a multipart message
-            self.socket.send(command_msg, zmq.SNDMORE)
-            self.socket.send(fp_array)
+            # send the command message
+            self.socket.send(command_msg)
 
             response = self.socket.recv()
-            response = np.array(struct.unpack("<2I", response)).astype(np.uint32)
+            res_fs = "<" + str(len(response) // 4) + "I"
+            response = np.array(struct.unpack(res_fs, response)).astype(np.uint32)
 
-            if (response[0] == command):
-                result = response[1].astype(np.int32)
+            if (response[0] == command[0]):
+                result = response[1]
+
+        except Exception as e:
+            print(f"An error occurred sending/receiving the request: {e}")
+
+        finally:
+            return result
+
+    # ------------------------------------------------------------------------------
+    def rx_set_gain(self, gain: np.int32):
+        # create the command message and convert to bytearray
+        command = np.array([self.SET_RX_GAIN, gain]).astype(np.uint32)
+        cmd_fs = "<" + str(command.size) + "I"
+        command_msg = struct.pack(cmd_fs, *command)
+
+        result = -1
+        try:
+            # send the command message
+            self.socket.send(command_msg)
+
+            response = self.socket.recv()
+            res_fs = "<" + str(len(response) // 4) + "I"
+            response = np.array(struct.unpack(res_fs, response)).astype(np.uint32)
+
+            if (response[0] == command[0]):
+                result = response[1]
 
         except Exception as e:
             print(f"An error occurred sending/receiving the request: {e}")

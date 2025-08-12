@@ -380,6 +380,12 @@ int main(int argc, char** argv)
     //bool rx_enable = false;
     //std::vector<bladerf_frequency> rx_hop_sequence;
     std::thread rx_thread;
+    uint64_t num_rx_samples = 0;
+    std::vector<std::complex<int16_t>> rx_samples;
+    std::string rx_filename = "";
+    std::string sdate, stime;
+    std::ofstream rx_file_stream;
+    std::string rx_save_location = "/rx_data/";
 
     bladerf_frequency tuned_freq;
 
@@ -586,11 +592,11 @@ int main(int argc, char** argv)
             data_log << warning << error_msg << std::endl;
         }
         
-        //blade_status = bladerf_sync_config(dev, BLADERF_RX_X1, BLADERF_FORMAT_SC16_Q11, num_buffers, buffer_size, num_transfers, blade_timeout_ms);
-        //if (blade_status != 0)
-        //{
-        //    std::cout << "Failed to configure RX sync interface - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
-        //}
+        blade_status = bladerf_sync_config(dev, BLADERF_RX_X1, BLADERF_FORMAT_SC16_Q11, num_buffers, buffer_size, num_transfers, blade_timeout_ms);
+        if (blade_status != 0)
+        {
+            std::cout << "Failed to configure RX sync interface - error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+        }
 
         //blade_status = bladerf_set_gain_mode(dev, rx, BLADERF_GAIN_MGC);
 
@@ -1035,6 +1041,135 @@ int main(int argc, char** argv)
                 msg_result.resize(2);
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::LOAD_IQ_FILE);
                 msg_result[1] = 1;
+                break;
+
+
+            case static_cast<uint32_t>(BLADE_MSG_ID::CONFIG_RX):
+                msg_result.resize(2);
+                msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::CONFIG_RX); 
+                msg_result[0] = -1;
+
+                rx_start_freq = ((uint64_t)command[CONFIG_START_FREQ_MSB_INDEX] << 32) | command[CONFIG_START_FREQ_LSB_INDEX];
+                rx_stop_freq = ((uint64_t)command[CONFIG_STOP_FREQ_MSB_INDEX] << 32) | command[CONFIG_STOP_FREQ_LSB_INDEX];
+                rx_step = command[CONFIG_FREQ_STEP_INDEX];
+                rx_sample_rate = command[CONFIG_SAMPLERATE_INDEX];
+                rx_bw = command[CONFIG_BANDWIDTH_INDEX];
+                rx_gain = command[CONFIG_GAIN_INDEX];
+
+                blade_status = bladerf_set_sample_rate(dev, rx, rx_sample_rate, &rx_sample_rate);
+                if (blade_status != 0)
+                {
+                    std::cout << warning << "Error setting sample rate: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                    data_log << warning << "Error setting sample rate: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                }
+
+                //blade_status = config_blade_channel(dev, tx, tx_hops[0].freq, tx_sample_rate, tx_bw, tx_gain);
+                blade_status = bladerf_set_gain(dev, rx, rx_gain);
+                blade_status = bladerf_get_gain(dev, rx, &rx_gain);
+                blade_status |= bladerf_set_bandwidth(dev, rx, rx_bw, &rx_bw);
+                blade_status |= bladerf_set_frequency(dev, rx, rx_start_freq);
+                if (blade_status != 0)
+                {
+                    std::cout << warning << "Error configuring channel: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                    data_log << warning << "Error configuring channel: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                }
+
+
+                std::cout << info << "Config:" << std::endl;
+                std::cout << "------------------------------------------------------------------" << std::endl;
+                std::cout << "Receiver:" << std::endl;
+                std::cout << "  start freq:  " << rx_start_freq << std::endl;
+                std::cout << "  stop freq:   " << rx_stop_freq << std::endl;
+                std::cout << "  freq step:   " << rx_step << std::endl;
+                std::cout << "  sample_rate: " << rx_sample_rate << std::endl;
+                std::cout << "  bw:          " << rx_bw << std::endl;
+                std::cout << "  tx1_gain:    " << rx_gain << std::endl;
+                std::cout << "------------------------------------------------------------------" << std::endl << std::endl;
+
+                data_log << info << "Config:" << std::endl;
+                data_log << "------------------------------------------------------------------" << std::endl;
+                data_log << "Receiver:" << std::endl;
+                data_log << "  start freq:  " << rx_start_freq << std::endl;
+                data_log << "  stop freq:   " << rx_stop_freq << std::endl;
+                data_log << "  freq step:   " << rx_step << std::endl;
+                data_log << "  sample_rate: " << rx_sample_rate << std::endl;
+                data_log << "  bw:          " << rx_bw << std::endl;
+                data_log << "  tx1_gain:    " << rx_gain << std::endl;
+                data_log << "------------------------------------------------------------------" << std::endl << std::endl;
+
+                msg_result[1] = (uint32_t)(blade_status == 0);
+                break;
+
+            case static_cast<uint32_t>(BLADE_MSG_ID::CAPTURE_SAMPLES):
+                msg_result.resize(2);
+                msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::CAPTURE_SAMPLES);
+                msg_result[1] = -1;
+
+                // get the uint32_t representation of the capture time and convert to samples
+                t.u32 = command[0];
+                num_rx_samples = t.f32 * rx_sample_rate;
+                rx_samples.clear();
+                rx_samples.resize(num_rx_samples, 0);
+
+                get_current_time(sdate, stime);
+
+                // collect the samples
+                blade_status = bladerf_sync_rx(dev, (int16_t*)rx_samples.data(), num_rx_samples, NULL, blade_timeout_ms);
+                if (blade_status != 0)
+                {
+                    std::cerr << "Unable to get the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                }
+
+                rx_filename = "blade_F" + convert_metric_prefix((double)(rx_start_freq)) + "_SR" + convert_metric_prefix((double)(rx_sample_rate)) + "_" + sdate + "_" + stime + ".sc16";
+
+                std::cout << "Capture complete!  Saving data..." << std::endl << std::endl;
+                rx_file_stream.open(rx_save_location + rx_filename, ios::out | ios::binary);
+                rx_file_stream.write(reinterpret_cast<const char*>(rx_samples.data()), rx_samples.size() * sizeof(int16_t));
+                rx_file_stream.close();
+
+                // send back the filename
+                for (idx = 0; idx < rx_filename.size(); ++idx)
+                {
+                    msg_result.push_back(rx_filename[idx]);
+                }
+
+                msg_result[1] = 1;
+
+                break;
+
+            case static_cast<uint32_t>(BLADE_MSG_ID::SET_RX_FREQ):
+                msg_result.resize(2);
+                msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::SET_RX_FREQ);
+                msg_result[1] = -1;
+
+                rx_start_freq = ((uint64_t)command[CONFIG_START_FREQ_MSB_INDEX] << 32) | command[CONFIG_START_FREQ_LSB_INDEX];
+
+                blade_status = bladerf_set_frequency(dev, rx, rx_start_freq);
+                if (blade_status != 0)
+                {
+                    std::cout << warning << "Error configuring channel: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                    data_log << warning << "Error configuring channel: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                }
+
+                msg_result[1] = (int32_t)(blade_status == 0);
+                break;
+
+            case static_cast<uint32_t>(BLADE_MSG_ID::SET_RX_GAIN):
+                msg_result.resize(2);
+                msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::SET_RX_GAIN);
+                msg_result[1] = -1;
+
+                rx_gain = command[1];
+
+                blade_status = bladerf_set_gain(dev, rx, rx_gain);
+                blade_status |= bladerf_get_gain(dev, rx, &rx_gain);
+                if (blade_status != 0)
+                {
+                    std::cout << warning << "Error configuring channel: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                    data_log << warning << "Error configuring channel: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                }
+
+                msg_result[1] = (int32_t)(blade_status == 0);
                 break;
 
             default:
