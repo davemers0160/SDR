@@ -33,45 +33,45 @@
 bool is_running = false;
 
 
-//-----------------------------------------------------------------------------
-std::string convert_metric_prefix(double num)
-{
-    uint32_t idx;
-    std::vector<std::pair<double, std::string>> prefix = { std::make_pair(1e-12, "p"), std::make_pair(1e-9, "n"), std::make_pair(1e-6, "u"), std::make_pair(1e-3, "m"), std::make_pair(1, "N"), std::make_pair(1e3, "K"), std::make_pair(1e6, "M"), std::make_pair(1e9, "G"), std::make_pair(1e12, "T")};
-
-    double p = 0.0;
-    double s = 0.0;
-    double v = 0.0;
-
-
-    // find which prefix returns a whole number
-    for (idx = 0; idx < prefix.size(); ++idx)
-    {
-        v = num/prefix[idx].first;
-        
-        if (abs(v) < 1.0)
-        {
-            break;
-        }
-    }
-
-    if(idx > 0)
-        --idx;
-
-    v = (num / prefix[idx].first);
-
-    if(v < 0)
-        p = ceil(num / prefix[idx].first - 0.5);
-    else
-        p = floor(num / prefix[idx].first + 0.5);
-
-    s = abs(floor((v-p)*1000 + 0.5));
-
-    std::string mp = num2str((int64_t)p, "%d") + prefix[idx].second + num2str((int64_t)s, "%03d");
-
-    return mp;
-
-}
+////-----------------------------------------------------------------------------
+//std::string convert_metric_prefix(double num)
+//{
+//    uint32_t idx;
+//    std::vector<std::pair<double, std::string>> prefix = { std::make_pair(1e-12, "p"), std::make_pair(1e-9, "n"), std::make_pair(1e-6, "u"), std::make_pair(1e-3, "m"), std::make_pair(1, "N"), std::make_pair(1e3, "K"), std::make_pair(1e6, "M"), std::make_pair(1e9, "G"), std::make_pair(1e12, "T")};
+//
+//    double p = 0.0;
+//    double s = 0.0;
+//    double v = 0.0;
+//
+//
+//    // find which prefix returns a whole number
+//    for (idx = 0; idx < prefix.size(); ++idx)
+//    {
+//        v = num/prefix[idx].first;
+//        
+//        if (abs(v) < 1.0)
+//        {
+//            break;
+//        }
+//    }
+//
+//    if(idx > 0)
+//        --idx;
+//
+//    v = (num / prefix[idx].first);
+//
+//    if(v < 0)
+//        p = ceil(num / prefix[idx].first - 0.5);
+//    else
+//        p = floor(num / prefix[idx].first + 0.5);
+//
+//    s = abs(floor((v-p)*1000 + 0.5));
+//
+//    std::string mp = num2str((int64_t)p, "%d") + prefix[idx].second + num2str((int64_t)s, "%03d");
+//
+//    return mp;
+//
+//}
 
 //-----------------------------------------------------------------------------
 void signal_handler(int sig_num)
