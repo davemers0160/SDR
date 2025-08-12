@@ -96,7 +96,7 @@ int main(int argc, char** argv)
     bladerf_frequency rx_freq;
     bladerf_sample_rate fs;
     bladerf_bandwidth rx_bw;
-    bladerf_gain rx1_gain = 65;
+    bladerf_gain rx_gain = 20;
     int64_t span = 100000;
 
     int64_t f_offset;           // offset from the tuned frequency (Hz)
@@ -122,12 +122,12 @@ int main(int argc, char** argv)
     // NOAA radio
     case 0:
         fs = 882000;
-        rx_freq = 318100000;
+        rx_freq = 130300000;
         rx_bw = 88200;
         f_offset = 0;
         channel_bw = 0;
         audio_freq = 44100;
-        n_taps = 31;
+        n_taps = 101;
         break;
 
     // FM radio station
@@ -163,7 +163,7 @@ int main(int argc, char** argv)
     // array fire variables
     //af::array raw_data, fft_data, raw_data2;
 
-    af::array x2, x3, x4, x5, x6, x7, x8;
+    af::array x2, x3, x4, x4m, x5, x6, x7, x8;
 
 #endif // USE_ARRAYFIRE
 
@@ -200,7 +200,7 @@ int main(int argc, char** argv)
 
         sdr->set_rx_frequency(rx_freq);
         sdr->set_rx_samplerate(fs);
-        sdr->set_rx_gain(66, BLADERF_GAIN_MANUAL);
+        sdr->set_rx_gain(rx_gain, BLADERF_GAIN_MANUAL);
         sdr->set_rx_bandwidth(rx_bw);
 
         // decimation rate
@@ -213,7 +213,8 @@ int main(int argc, char** argv)
         af::array dec_seq = af::seq(0, num_samples, dec_rate);
 
         // low pass filter coefficients
-        std::vector<float> lpf = DSP::create_fir_filter<float>(n_taps, (channel_bw / 2.0) / (float)fs, &DSP::hann_window);
+        //float fc = (channel_bw / 2.0);
+        std::vector<float> lpf = DSP::create_fir_filter<float>(n_taps, (0.5*audio_freq) / (float)fs, &DSP::hann_window);
         
         // create the low pass filter from the filter coefficients
         af::array af_lpf = af::array(lpf.size(), (float*)lpf.data());
@@ -307,20 +308,28 @@ int main(int argc, char** argv)
 
             // decimate the audio sequence
             //x7 = x6(seq_audio);
+            x5 = af::abs(x4);
 
             // scale the audio from -1 to 1
-            x7 = (x4 * (1.0 / (af::max<float>(af::abs(x4)))));
+            x7 = (x5 * (1.0 / (af::max<float>(x5))));
 
             // shift to 0 to 2 and then scale by 60
-            x7 = ((x7+1) * 30).as(af::dtype::u8);
+            x7 = ((x7+1) * 50).as(af::dtype::u8);
 
+            //if (af::max<uint8_t>(x7) > 40)
+            //{
 #if defined(_WIN32) | defined(__WIN32__) | defined(__WIN32) | defined(_WIN64) | defined(__WIN64)
             // place the data into the header for windows audio data
             WAVEHDR header = { (LPSTR)x7.host<uint8_t>(), x7.dims(0) * sizeof(uint8_t), 0, 0, 0, 0, 0, 0 };
 
             waveOutPrepareHeader(hWaveOut, &header, sizeof(WAVEHDR));
             waveOutWrite(hWaveOut, &header, sizeof(WAVEHDR));
+
+#else
+
+
 #endif
+            //}
 
             // show the results of the FFT in the window
             //fft_data = 20 * af::log10(af::shift(af::abs(af::fft(x3)*fft_scale), (num_samples >> 1)))-10;
