@@ -611,6 +611,14 @@ int main(int argc, char** argv)
             data_log << warning << error_msg << std::endl;
         }
 
+        blade_status = bladerf_enable_module(dev, BLADERF_RX, true);
+        if (blade_status != 0)
+        {
+            error_msg = "Error enabling RX - error: " + std::string(bladerf_strerror(blade_status));
+            std::cout << warning << error_msg << std::endl;
+            data_log << warning << error_msg << std::endl;
+        }
+
         // the gain must be set after the module has been enabled
         blade_status = bladerf_set_gain_mode(dev, tx, BLADERF_GAIN_MANUAL);
         blade_status |= bladerf_set_gain(dev, tx, tx_gain);
@@ -821,9 +829,9 @@ int main(int argc, char** argv)
                     // stop transmitting
                     transmit = false;
 
-                    tuned_freq = rx_hops[hop_index].freq;
-                    blade_status = switch_blade_mode(dev, blade_mode, tx, rx);
-                    blade_status |= bladerf_set_frequency(dev, rx, tuned_freq);
+                    tuned_freq = rx_start_freq;
+                    //blade_status = switch_blade_mode(dev, blade_mode, tx, rx);
+                    blade_status = bladerf_set_frequency(dev, rx, tuned_freq);
 
                     // start the rx thread
                     recieve = true;
@@ -834,16 +842,23 @@ int main(int argc, char** argv)
                     // stop recieving
                     recieve = false;
 
-                    tuned_freq = tx_hops[hop_index].freq;
-                    blade_status = switch_blade_mode(dev, blade_mode, tx, rx);
-                    blade_status |= bladerf_set_frequency(dev, tx, tuned_freq);
+                    tuned_freq = tx_hops[0].freq;
+                    //blade_status = switch_blade_mode(dev, blade_mode, tx, rx);
+                    blade_status = bladerf_set_frequency(dev, tx, tuned_freq);
 
                     // start the tx thread
                     transmit = true;
                 }
+
+                if (blade_status != 0)
+                {
+                    std::cout << warning << "Error switching modes: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                    data_log << warning << "Error switching modes: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                }
+
                 msg_result.resize(2);
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::SELECT_MODE);
-                msg_result[1] = blade_status;
+                msg_result[1] = (uint32_t)(blade_status == 0);
                 break;
 
             case static_cast<uint32_t>(BLADE_MSG_ID::CONFIG_TX):
@@ -1047,7 +1062,7 @@ int main(int argc, char** argv)
             case static_cast<uint32_t>(BLADE_MSG_ID::CONFIG_RX):
                 msg_result.resize(2);
                 msg_result[0] = static_cast<uint32_t>(BLADE_MSG_ID::CONFIG_RX); 
-                msg_result[0] = -1;
+                msg_result[1] = -1;
 
                 rx_start_freq = ((uint64_t)command[CONFIG_START_FREQ_MSB_INDEX] << 32) | command[CONFIG_START_FREQ_LSB_INDEX];
                 rx_stop_freq = ((uint64_t)command[CONFIG_STOP_FREQ_MSB_INDEX] << 32) | command[CONFIG_STOP_FREQ_LSB_INDEX];
@@ -1106,7 +1121,7 @@ int main(int argc, char** argv)
                 msg_result[1] = -1;
 
                 // get the uint32_t representation of the capture time and convert to samples
-                t.u32 = command[0];
+                t.u32 = command[1];
                 num_rx_samples = t.f32 * rx_sample_rate;
                 rx_samples.clear();
                 rx_samples.resize(num_rx_samples, 0);

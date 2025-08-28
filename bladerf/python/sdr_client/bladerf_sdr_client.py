@@ -304,8 +304,6 @@ class bladerf_sdr_client:
         finally:
             return result, file_list
 
-
-
     #-------------------------------------------------------------------------------
     def load_iq_file(self, iq_filename: str):
         # create the command message and convert to bytearray
