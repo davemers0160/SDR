@@ -268,7 +268,7 @@ std::vector<T> am_demod(std::vector<T>& v1, T scale)
     {
         //res[idx-1] = std::sqrt(v1[idx]*v1[idx] + v1[idx-1]*v1[idx-1] - scale * v1[idx] * v1[idx - 1]);
 
-        res[idx - 1] = abs(v1[idx]);
+        res[idx] = abs(v1[idx]);
     }
 
     return res;
@@ -405,6 +405,27 @@ int main(int argc, char** argv)
         //sdr->start_single(cf_samples, num_samples);
         //sdr->wait_for_samples();
 
+        /*
+        Step 1: start a thread to grab the data and fill an alternating buffer.  This thread will run forever.  This thread needs to indicate
+        when a capture is complete and ready to be processed
+
+        Step 2: A read index variable will be used to track which buffer index to read from.  Process the the buffer
+        - scale data to +/- 1
+        - assume that we no longer need to capture data at an offset therefore no frequency rotation
+        - low pass filter the data
+        - decimate the data (look at combining the filtering and decimation if needed)
+        - concatenate 3 decimated blocks with a rolloing FIFO object that will advance by 80% of a block
+        - take the data in std::XXXX form and convert to cv::XXX structure
+        - 
+        
+        
+        */
+
+
+
+
+
+
         //-----------------------------------------------------------------------------
         // start the demodulation process
         //-----------------------------------------------------------------------------
@@ -499,9 +520,9 @@ int main(int argc, char** argv)
         cv_x11 = clamp(cv_x11, 0, 255);
 
 
-        cv_x11.convertTo(cv_x12, CV_8UC1);
+        cv_x11.convertTo(cv_x12, CV_16SC1, 1, -128);
 
-        cv_x11 -= 128.0;
+        //cv_x11 -= 128.0;
 
         //float tmp;
         //
