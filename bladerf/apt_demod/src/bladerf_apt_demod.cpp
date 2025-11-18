@@ -429,7 +429,7 @@ std::vector<T> polar_discriminator(std::vector<std::complex<T>>& v1, double scal
 
     for (; v1_itr1 != v1_end; ++v1_itr0, ++v1_itr1, ++res_itr)
     {
-        tmp = (*v1_itr0) * std::conj(*v1_itr1);
+        tmp = (*v1_itr1) * std::conj(*v1_itr0);
 
         *res_itr = scale * std::atan2(tmp.imag(), tmp.real());
     }
@@ -487,6 +487,28 @@ std::vector<T> scale_vec(std::vector<T>& v1, T scale)
 
 //-----------------------------------------------------------------------------
 template <typename T>
+inline std::vector<std::complex<double>> frequency_shift(const std::vector<T>& data, double fr)
+{
+    double index = 0;
+    std::vector<complex<double>> res(data.size());
+
+    std::complex<double> frc = { 0, 2.0 * M_PI * fr };
+
+    auto d_itr = data.begin();
+    auto d_end = data.end();
+    auto res_itr = res.begin();
+
+    for (; d_itr != d_end; ++d_itr, ++res_itr)
+    {
+        *res_itr = (*d_itr) * std::exp(frc*index);
+        index += 1;
+    }
+
+    return res;
+}
+
+//-----------------------------------------------------------------------------
+template <typename T>
 std::vector<T> am_demod(std::vector<T>& v1, T scale)
 {
     uint64_t idx;
@@ -526,9 +548,9 @@ int main(int argc, char** argv)
     uint64_t sample_rate = 624000;
 
     // number of taps to create a low pass filters
-    uint64_t rf_taps = 201;
+    //uint64_t rf_taps = 201;
     uint64_t fm_taps = 200;
-    uint64_t audio_taps = 150;
+    uint64_t audio_taps = 195;
 
     // offset from the center where we want to demodulate(Hz)
     int64_t rf_freq_offset = 0; // 115750;
@@ -725,7 +747,8 @@ int main(int argc, char** argv)
             //cv::Mat cv_x4(1, v_x4.size(), CV_64FC2, v_x4.data());
 
             //cv::filter2D(cv_x4, cv_x5, CV_64FC2, cv_lpf_fm, cv::Point(-1, -1), cv::BORDER_REFLECT_101);
-
+            //for(idx=0; idx<10; ++idx)
+            //    std::cout << x4[idx] << std::endl;
 
             // polar discriminator - x4(2:end).*conj(x4(1:end - 1));
             //x5 = x4(af::seq(1, af::end, 1)) * af::conjg(x4(af::seq(0, -2, 1)));
@@ -733,7 +756,10 @@ int main(int argc, char** argv)
             std::vector<double> x6 = polar_discriminator(x4, phasor_scale);
             //std::vector<float> x5 = polar_discriminator(x4, phasor_scale);
             //cv_polar_discriminator(cv_x4, cv_x6, phasor_scale);
-            cv::Mat cv_x6(1, x6.size(), CV_64FC1, x6.data());
+            //cv::Mat cv_x6(1, x6.size(), CV_64FC1, x6.data());
+
+            //for (idx = 0; idx < 10; ++idx)
+            //    std::cout << x6[idx] << std::endl;
 
             // run the audio through the low pass de-emphasis filter
             //x6 = af::fir(af_lpf_de, x5);
@@ -741,11 +767,20 @@ int main(int argc, char** argv)
 
             // run the audio through a second low pass filter before decimation
             //x6 = af::fir(af_lpf_a, x6);
+            std::vector<std::complex<double>> x7 = frequency_shift(x6, (double)am_offset / (double)desired_rf_sample_rate);
 
-            cv_x7 = cv_frequency_rotate(cv_x6, (double)am_offset / (double)desired_rf_sample_rate);
+//            cv::Mat cv_x7(1, x7.size(), CV_64FC2, x7.data());
 
-            cv::filter2D(cv_x7, cv_x8, CV_64FC1, cv_lpf_am, cv::Point(-1, -1), cv::BORDER_REFLECT_101);
+            //for (idx = 0; idx < 10; ++idx)
+            //    std::cout << x7[idx] << std::endl;
 
+            //cv_x7 = cv_frequency_rotate(cv_x6, (double)am_offset / (double)desired_rf_sample_rate);
+
+            //cv::filter2D(cv_x7, cv_x8, CV_64FC1, cv_lpf_am, cv::Point(-1, -1), cv::BORDER_REFLECT_101);
+
+            std::vector<std::complex<double>> x8 = polyphase_decimate(x7, audio_decimation_factor, lpf_am);
+
+            cv::Mat cv_x8(1, x8.size(), CV_64FC2, x8.data());
 
             // decimate the audio sequence
             //x7 = x6(seq_audio);
@@ -767,10 +802,10 @@ int main(int argc, char** argv)
             cv_x9 = cv_cmplx_abs(cv_x8);
 
             // downsample the AM
-            cv::Mat cv_x9a;
-            cv_decimate(cv_x9, cv_x9a, audio_decimation_factor);
+            //cv::Mat cv_x9a;
+            //cv_decimate(cv_x9, cv_x9a, audio_decimation_factor);
 
-            cv::hconcat(cv_x10, cv_x9a, cv_x10);
+            cv::hconcat(cv_x10, cv_x9, cv_x10);
             stop_time = std::chrono::high_resolution_clock::now();
             duration = std::chrono::duration_cast<chrono::milliseconds>(stop_time - start_time).count();
 
@@ -792,12 +827,12 @@ int main(int argc, char** argv)
         // Normalize the signal to px luminance values, discretize
         //std::vector<float> x11(x9.size());
 
-        cv_x11 = ((255.0 / delta) * (cv_x10 - x_min)) - 128;
+        cv_x11 = ((255.0 / delta) * (cv_x10 - x_min));
 
         //cv_x11 = clamp(cv_x11, 0, 255);
 
 
-        cv_x11.convertTo(cv_x12, CV_16SC1, 1, 0);
+        cv_x11.convertTo(cv_x12, CV_16SC1, 1, -128);
 
         //cv_x11 -= 128.0;
 
@@ -846,7 +881,7 @@ int main(int argc, char** argv)
         }
 
         img = cv::Mat::zeros(peaks.size(), 2080, CV_8UC1);
-        cv_x12.convertTo(cv_x12, CV_8UC1, 1, 0);
+        cv_x11.convertTo(cv_x11, CV_8UC1, 1, 0);
 
         //for idx = 1:(size(peaks, 1) - 2)
         //    img = cat(1, img, d5(peaks(idx, 1) :peaks(idx, 1) + 2079)');
@@ -857,11 +892,10 @@ int main(int argc, char** argv)
         {
             r.x = peaks[idx].first;
     
-            cv_x12(r).copyTo(img(cv::Rect(0, idx, 2080, 1)));
+            cv_x11(r).copyTo(img(cv::Rect(0, idx, 2080, 1)));
 
         }
         
-
         //sdr->stop();
         cv::namedWindow("test", cv::WINDOW_NORMAL);
         cv::imshow("test", img);

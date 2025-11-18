@@ -122,13 +122,15 @@ inline cv::Mat cv_frequency_rotate(cv::Mat& src, double fr)
 
     cv::MatIterator_<double> src_itr = src.begin<double>();
     cv::MatIterator_<double> src_end = src.end<double>();
-    cv::MatIterator_<cv::Vec2d> dst_itr = dst.begin<cv::Vec2d>();
+//    cv::MatIterator_<cv::Vec2d> dst_itr = dst.begin<cv::Vec2d>();
+    cv::MatIterator_<double> dst_itr = dst.begin<double>();
 
     for (; src_itr != src_end; ++src_itr, ++dst_itr)
     {
         r = std::exp(c1 * (double)index);
-        (*dst_itr)[0] = *src_itr * r.real();
-        (*dst_itr)[1] = *src_itr * r.imag();
+        (*dst_itr) = *src_itr * r.real();
+//        (*dst_itr)[0] = *src_itr * r.real();
+        //(*dst_itr)[1] = *src_itr * r.imag();
 
         ++index;
     }
