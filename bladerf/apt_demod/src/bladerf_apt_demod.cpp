@@ -140,71 +140,62 @@ void get_data(uint32_t sample_rate, struct bladerf* dev)
 
 }
 
-std::vector<std::complex<double>> polyphase_decimate(const std::vector<std::complex<double>>& x, int32_t M, const std::vector<double>& h)
+std::vector<std::complex<double>> polyphase_decimate(const std::vector<std::complex<double>>& x, int32_t decimation_factor, const std::vector<double>& h)
 {
     uint64_t idx, jdx, kdx;
+    int64_t index;
 
-    if (M <= 0)
+    if (decimation_factor <= 0)
         throw std::invalid_argument("Decimation factor M must be positive.");
 
-    int L = h.size();
-    if (L % M != 0)
+    int32_t filter_size = h.size();
+    if (filter_size % decimation_factor != 0)
         throw std::invalid_argument("Filter length must be a multiple of M.");
 
-    int P = L / M;   // taps per phase
+    int32_t tap_per_phase = filter_size / decimation_factor;   // taps per phase
 
     // --- Build polyphase components ---
     // E[k][p] = h[p*M + k],  (k = phase, p = tap index)
-    std::vector<std::vector<double>> E(M, std::vector<double>(P));
-    for (idx = 0; idx < M; ++idx)
+    //N = floor(fm_taps / rf_decimation_factor);
+    //p = zeros(rf_decimation_factor, N);
+
+    //for k = 1:decimation_factor
+    //    index = k : decimation_factor : fm_taps;
+    //p(k, :) = lpf_fm(index);
+    //end
+    std::vector<std::vector<double>> E(decimation_factor, std::vector<double>(tap_per_phase));
+    for (idx = 0; idx < decimation_factor; ++idx)
     {
-        for (jdx = 0; jdx < P; ++jdx)
+        for (jdx = 0; jdx < tap_per_phase; ++jdx)
         {
-            E[idx][jdx] = h[jdx * M + idx];
+            E[idx][jdx] = h[jdx * decimation_factor + idx];
         }
     }
 
     // --- Output size ---
-    int out_len = x.size() / M;
-    std::vector<std::complex<double>> output(out_len, std::complex<double>(0,0));
+    int64_t output_length = x.size() / decimation_factor;
+    std::vector<std::complex<double>> output(output_length, std::complex<double>(0,0));
 
     // --- Perform polyphase filtering + decimation ---
-    for (idx= 0; idx < out_len; ++idx)
+    for (idx= 0; idx < output_length; ++idx)
     {
         std::complex<double> sum(0.0, 0.0);
         std::complex<double> sum2(0.0, 0.0);
 
         // Process each polyphase branch
-        for (jdx = 0; jdx < M; ++jdx) 
+        for (jdx = 0; jdx < decimation_factor; ++jdx)
         {
-/*
-            // Phase index for this output sample
-            int k = idx % M;
-
-            // Dot product of phase k with appropriate samples
-            for (kdx = 0; kdx < P; ++kdx)
-            {
-                int inputIdx = n * M - p;       // input index for this tap
-                if (inputIdx < 0 || inputIdx >= (int)x.size())
-                    continue;           // handle boundaries safely
-
-                sum2 += x[inputIdx] * E[k][kdx];
-            }
-
-*/
-
-
             // For output sample n, we process input starting at index n*M
             // Each branch filters different phases of the input
-            for (kdx = 0; kdx < E[jdx].size(); ++kdx) 
+            for (kdx = 0; kdx < tap_per_phase; ++kdx)
             {
-                // M * (m - l) - k;  % 0-based index
-                int inputIdx = M * (idx - kdx) - jdx;    //idx * M - branch - k * M;
+                // index = rf_decimation_factor * (idx - kdx) - jdx;  % 0-based index
+                index = decimation_factor * (idx - kdx) - jdx;    //idx * M - branch - k * M;
 
                 // Handle boundary conditions (zero-pad before signal start)
-                if (inputIdx >= 0 && inputIdx < x.size()) 
+                if (index >= 0 && index < x.size())
                 {
-                    sum += E[jdx][kdx] * x[inputIdx];
+                    sum += E[jdx][kdx] * x[index];
                 }
             }
         }
@@ -425,7 +416,7 @@ std::vector<T> decimate_vec(std::vector<T>& v1, double rate)
 //-----------------------------------------------------------------------------
 //polar discriminator - x(2:end).*conj(x(1:end - 1));
 template <typename T>
-std::vector<T> polar_discriminator(std::vector<std::complex<T>>& v1, float scale)
+std::vector<T> polar_discriminator(std::vector<std::complex<T>>& v1, double scale)
 {
     std::complex<T> tmp;
     std::vector<T> res(v1.size()-1);
@@ -440,7 +431,7 @@ std::vector<T> polar_discriminator(std::vector<std::complex<T>>& v1, float scale
     {
         tmp = (*v1_itr0) * std::conj(*v1_itr1);
 
-        *res_itr = scale * std::atan2f(tmp.imag(), tmp.real());
+        *res_itr = scale * std::atan2(tmp.imag(), tmp.real());
     }
 
     return res;
@@ -526,6 +517,11 @@ int main(int argc, char** argv)
     uint64_t num_samples;
     //uint64_t block_size = 624000;
 
+    // timing variables
+    auto start_time = std::chrono::high_resolution_clock::now();
+    auto stop_time = std::chrono::high_resolution_clock::now();
+    double duration = std::chrono::duration_cast<chrono::nanoseconds>(stop_time - start_time).count();
+
     // number of samples per second
     uint64_t sample_rate = 624000;
 
@@ -569,9 +565,9 @@ int main(int argc, char** argv)
     cv::Mat sync_pulse = (cv::Mat_<int16_t>(1,39) << -128, -128, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, -128, -128, -128, -128, -128, -128, -128);
 
     //cv::Mat cv_x3;
-    cv::Mat cv_x4;
+    //cv::Mat cv_x4;
     //cv::Mat cv_x5;
-    cv::Mat cv_x6;
+    //cv::Mat cv_x6;
     cv::Mat cv_x7;
     cv::Mat cv_x8;
     cv::Mat cv_x9;
@@ -706,25 +702,27 @@ int main(int argc, char** argv)
         //cv_cmplx_decimate(cv_x3, cv_x4, (double)rf_decimation_factor);
 
         // look at block processing like we would do with the SDR input
-        double capture_time = 5.0;
+        double capture_time = 2.0;
         uint64_t block_size = floor(sample_rate * capture_time + 0.5);
 
         uint64_t num_blocks = floor((num_samples) / (double)block_size);
 
-        cv_x10 = cv::Mat(1, 1, CV_64FC1);
+        cv_x10 = cv::Mat(1, 1, CV_64FC1, cv::Scalar(0.0));
         std::cout << "number of blocks to process: " << num_blocks << std::endl;
 
-        for (idx = 0; idx < num_samples>>4; idx += block_size)
+        for (idx = 0; idx < num_samples; idx += block_size)
         {
-            std::cout << "processing block: " << idx << std::endl;
+            std::cout << "processing block: " << idx; // << std::endl;
+                // timing variables
+            start_time = std::chrono::high_resolution_clock::now();
 
             std::vector<std::complex<double>> tmp_samples;
             std::copy(cf_samples.begin() + idx, // Start iterator for the source range
                 cf_samples.begin() + (idx + block_size), // End iterator (exclusive) for the source range
                 std::back_inserter(tmp_samples));
 
-            std::vector<std::complex<double>> v_x4 = polyphase_decimate(tmp_samples, rf_decimation_factor, lpf_fm);
-            cv::Mat cv_x4(1, v_x4.size(), CV_64FC2, v_x4.data());
+            std::vector<std::complex<double>> x4 = polyphase_decimate(tmp_samples, rf_decimation_factor, lpf_fm);
+            //cv::Mat cv_x4(1, v_x4.size(), CV_64FC2, v_x4.data());
 
             //cv::filter2D(cv_x4, cv_x5, CV_64FC2, cv_lpf_fm, cv::Point(-1, -1), cv::BORDER_REFLECT_101);
 
@@ -732,9 +730,10 @@ int main(int argc, char** argv)
             // polar discriminator - x4(2:end).*conj(x4(1:end - 1));
             //x5 = x4(af::seq(1, af::end, 1)) * af::conjg(x4(af::seq(0, -2, 1)));
             //x5 = af::atan2(af::imag(x5), af::real(x5)) * phasor_scale;
-            //std::vector<float> x6 = polar_discriminator(x4, phasor_scale);
+            std::vector<double> x6 = polar_discriminator(x4, phasor_scale);
             //std::vector<float> x5 = polar_discriminator(x4, phasor_scale);
-            cv_polar_discriminator(cv_x4, cv_x6, phasor_scale);
+            //cv_polar_discriminator(cv_x4, cv_x6, phasor_scale);
+            cv::Mat cv_x6(1, x6.size(), CV_64FC1, x6.data());
 
             // run the audio through the low pass de-emphasis filter
             //x6 = af::fir(af_lpf_de, x5);
@@ -745,7 +744,7 @@ int main(int argc, char** argv)
 
             cv_x7 = cv_frequency_rotate(cv_x6, (double)am_offset / (double)desired_rf_sample_rate);
 
-            cv::filter2D(cv_x7, cv_x8, CV_64FC2, cv_lpf_am, cv::Point(-1, -1), cv::BORDER_REFLECT_101);
+            cv::filter2D(cv_x7, cv_x8, CV_64FC1, cv_lpf_am, cv::Point(-1, -1), cv::BORDER_REFLECT_101);
 
 
             // decimate the audio sequence
@@ -772,9 +771,14 @@ int main(int argc, char** argv)
             cv_decimate(cv_x9, cv_x9a, audio_decimation_factor);
 
             cv::hconcat(cv_x10, cv_x9a, cv_x10);
+            stop_time = std::chrono::high_resolution_clock::now();
+            duration = std::chrono::duration_cast<chrono::milliseconds>(stop_time - start_time).count();
+
+            std::cout << " - " << duration << " milliseconds" << std::endl;
 
         }
 
+        cv_x10 = cv_x10.colRange(1, cv_x10.cols).clone();
         cv::minMaxIdx(cv_x10, &x_min, &x_max);
 
 
@@ -842,6 +846,7 @@ int main(int argc, char** argv)
         }
 
         img = cv::Mat::zeros(peaks.size(), 2080, CV_8UC1);
+        cv_x12.convertTo(cv_x12, CV_8UC1, 1, 0);
 
         //for idx = 1:(size(peaks, 1) - 2)
         //    img = cat(1, img, d5(peaks(idx, 1) :peaks(idx, 1) + 2079)');
@@ -851,6 +856,7 @@ int main(int argc, char** argv)
         for (idx = 0; idx < peaks.size()-1; ++idx)
         {
             r.x = peaks[idx].first;
+    
             cv_x12(r).copyTo(img(cv::Rect(0, idx, 2080, 1)));
 
         }
