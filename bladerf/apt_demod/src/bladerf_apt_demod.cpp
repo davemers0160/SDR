@@ -63,10 +63,11 @@ const double pi = 3.14159265358979;
 std::vector<std::vector<std::complex<int16_t>>> iq_data_queue(2);
 std::mutex read_mutex;
 std::condition_variable data_ready_cv;
-volatile std::vector<bool> data_ready(2, false);
-volatile int32_t read_index = 0;
+//volatile std::vector<bool> data_ready(2, false);
+volatile int32_t read_index = 1;
 volatile int32_t write_index = 0;
 volatile bool is_running = false;
+volatile bool data_ready = false;
 
 //-----------------------------------------------------------------------------
 void sig_handler(int sig_num)
@@ -89,6 +90,7 @@ inline void temp_get_data(bladerf_sample_rate sample_rate, double capture_time)
     int32_t blade_status = 0;
 
     uint64_t block_size = floor(sample_rate * capture_time + 0.5);
+    std::cout << info << "Starting thread..." << std::endl;
 
     iq_data_queue[0].resize(block_size);
     iq_data_queue[1].resize(block_size);
@@ -96,6 +98,9 @@ inline void temp_get_data(bladerf_sample_rate sample_rate, double capture_time)
     // data to read in
     std::string filename = "D:/data/RF/20240224/blade_F137.912M_SR0.624M_20240224_222353.sc16";
     std::vector<std::complex<int16_t>> samples;
+
+    std::cout << info << "Thread: Loading Data..." << std::endl;
+
     read_iq_data(filename, samples);
     uint64_t num_samples = samples.size();
 
@@ -106,25 +111,31 @@ inline void temp_get_data(bladerf_sample_rate sample_rate, double capture_time)
         samples.erase(samples.end() - rem, samples.end());
     }
 
+    std::cout << info << "Thread: Processing Data..." << std::endl;
     write_index = 0;
+    read_index = 1;
     uint64_t sample_index = 0;
     while (is_running == true)
     {
         // take the samples and place them into the right buffer
         std::copy(samples.begin() + sample_index, // Start iterator for the source range
             samples.begin() + sample_index + block_size, // End iterator (exclusive) for the source range
-            std::back_inserter(iq_data_queue[write_index]));
+            iq_data_queue[write_index].begin());
 
         // sleep to simulate the data capture of the SDR
         std::this_thread::sleep_for(std::chrono::milliseconds((uint32_t)(capture_time*999)));
 
-        write_index = (write_index+1) & 0x01;
+        write_index = (write_index + 1) & 0x01;
+        read_index = (read_index + 1) & 0x01;
 
+        data_ready = true;
         // this just resets the index back to the beginning to forever cycle through the data
         sample_index += block_size;
         if (sample_index >= samples.size())
         {
             sample_index = 0;
+            std::cout << info << "Thread: Resetting sample_index" << std::endl;
+
         }
     }
 
@@ -132,12 +143,11 @@ inline void temp_get_data(bladerf_sample_rate sample_rate, double capture_time)
 
 
 //-----------------------------------------------------------------------------
-void get_data(uint32_t sample_rate, struct bladerf* dev)
+void get_data(struct bladerf* dev, bladerf_sample_rate sample_rate, double capture_time)
 {
     int blade_status;
     uint32_t timeout_ms = 10000;
 
-    double capture_time = 2.0;
     uint64_t block_size = floor(sample_rate * capture_time + 0.5);
 
     iq_data_queue[0].resize(block_size);
@@ -626,43 +636,54 @@ int main(int argc, char** argv)
 
         // start the thread to capture data
         is_running = true;
-        //std::thread data_capture_thread = std::thread(temp_get_data, sample_rate);
+        std::thread data_capture_thread = std::thread(temp_get_data, sample_rate, capture_time);
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
 
         //-----------------------------------------------------------------------------
         // start the demodulation process
         //-----------------------------------------------------------------------------
-        std::vector<std::complex<double>> cf_samples(num_samples);
-        for (idx = 0; idx < num_samples; ++idx)
-        {
-            cf_samples[idx] = cf_scale * std::complex<double>(std::real(samples[idx]), std::imag(samples[idx]));
-            //cf_samples[idx] = cf_scale * std::complex<double>(std::real(samples[idx]), std::imag(samples[idx])) * (complex<double>)std::exp(-2.0 * 1i * M_PI * (f_offset / (double)sample_rate) * (double)idx);
-        }
+        //std::vector<std::complex<double>> cf_samples(num_samples);
+        //for (idx = 0; idx < num_samples; ++idx)
+        //{
+        //    cf_samples[idx] = cf_scale * std::complex<double>(std::real(samples[idx]), std::imag(samples[idx]));
+        //    //cf_samples[idx] = cf_scale * std::complex<double>(std::real(samples[idx]), std::imag(samples[idx])) * (complex<double>)std::exp(-2.0 * 1i * M_PI * (f_offset / (double)sample_rate) * (double)idx);
+        //}
 
         // look at block processing like we would do with the SDR input
         uint64_t block_size = floor(sample_rate * capture_time + 0.5);
-
         uint64_t num_blocks = floor((num_samples) / (double)block_size);
 
         std::vector<double> x10;
 
-        std::cout << "number of blocks to process: " << num_blocks << std::endl;
+        while (data_ready == false);
 
-        for (idx = 0; idx < num_samples; idx += block_size)
+        //std::cout << "number of blocks to process: " << num_blocks << std::endl;
+        std::cout << "processing block size: " << block_size << std::endl;
+
+        //for (idx = 0; idx < num_samples; idx += block_size)
+        while(is_running == true)
         {
-            std::cout << "processing block: " << idx; // << std::endl;
-            
+            data_ready = false;
+//            std::cout << "processing block: " << idx; // << std::endl;
+            std::cout << "processing block: " << block_size; // << std::endl;
+
             // timing variables
             start_time = std::chrono::high_resolution_clock::now();
 
-            //for (jdx = 0; jdx < block_size; ++jdx)
-            //{
-            //    cf_samples[jdx] = cf_scale * std::complex<double>(std::real(samples[idx]), std::imag(samples[idx]));
-            //}
+            // scale the input vector - read_index
+            std::vector<std::complex<double>> cf_samples(block_size);
+            for (jdx = 0; jdx < block_size; ++jdx)
+            {
+                cf_samples[jdx] = cf_scale * std::complex<double>(std::real(iq_data_queue[read_index][jdx]), std::imag(iq_data_queue[read_index][jdx]));
+            }
 
             std::vector<std::complex<double>> tmp_samples;
-            std::copy(cf_samples.begin() + idx, // Start iterator for the source range
-                cf_samples.begin() + (idx + block_size), // End iterator (exclusive) for the source range
-                std::back_inserter(tmp_samples));
+            //std::copy(cf_samples.begin() + idx, // Start iterator for the source range
+            //    cf_samples.begin() + (idx + block_size), // End iterator (exclusive) for the source range
+            //    std::back_inserter(tmp_samples));
+            std::copy(cf_samples.begin(), cf_samples.end(), std::back_inserter(tmp_samples));
 
             std::vector<std::complex<double>> x4 = polyphase_decimate(tmp_samples, rf_decimation_factor, lpf_fm);
 
@@ -719,7 +740,7 @@ int main(int argc, char** argv)
 
             // remove the processed samples
             uint32_t n = (*(peaks.end() - 1)).first;
-            n = std::max(n - 200UL, 0UL);
+            n = std::max(n - 500UL, 0UL);
 
             x10.erase(x10.begin(), x10.begin() + n);
 
@@ -727,6 +748,8 @@ int main(int argc, char** argv)
             duration = std::chrono::duration_cast<chrono::milliseconds>(stop_time - start_time).count();
 
             std::cout << " - " << duration << " milliseconds" << std::endl;
+
+            while (data_ready == false);
         }
 
         //auto minmax_pair = std::minmax_element(x10.begin(), x10.end());
@@ -759,24 +782,26 @@ int main(int argc, char** argv)
         cv::waitKey(0);
         bp = 1;
 
-        char key = 0;
-        while (key != 'q')
-        {
-            cv::Mat tmp(1, 2080, CV_8UC1);
-            cv::randu(tmp, cv::Scalar(0), cv::Scalar(255));
+        data_capture_thread.join();
 
-            start_time = std::chrono::high_resolution_clock::now();
+        //char key = 0;
+        //while (key != 'q')
+        //{
+        //    cv::Mat tmp(1, 2080, CV_8UC1);
+        //    cv::randu(tmp, cv::Scalar(0), cv::Scalar(255));
 
-            scrollImageUp(img, tmp);
+        //    start_time = std::chrono::high_resolution_clock::now();
 
-            stop_time = std::chrono::high_resolution_clock::now();
-            duration = std::chrono::duration_cast<chrono::microseconds>(stop_time - start_time).count();
-            std::cout << " - " << duration << " microseconds" << std::endl;
+        //    scrollImageUp(img, tmp);
 
-            cv::imshow("test", img);
-            key = cv::waitKey(10);
+        //    stop_time = std::chrono::high_resolution_clock::now();
+        //    duration = std::chrono::duration_cast<chrono::microseconds>(stop_time - start_time).count();
+        //    std::cout << " - " << duration << " microseconds" << std::endl;
 
-        }
+        //    cv::imshow("test", img);
+        //    key = cv::waitKey(10);
+
+        //}
 
     }
     catch(std::exception e)
