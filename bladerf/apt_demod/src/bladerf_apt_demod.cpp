@@ -159,6 +159,75 @@ void get_data(uint32_t sample_rate, struct bladerf* dev)
 
 }
 
+//-----------------------------------------------------------------------------
+inline std::vector<std::pair<int64_t, double>> get_correlation_peaks(cv::Mat src, cv::Mat sync_pulse)
+{
+    uint64_t index = 0;
+    std::vector<std::pair<int64_t, double>> peaks = { {0, 0 } };
+    uint32_t min_distance = 2000;
+    cv::Rect sp_rect(0, 0, sync_pulse.total(), 1);
+
+    cv::Mat tmp;
+
+    while (index <= src.total() - sync_pulse.total())
+    {
+
+        sp_rect.x = index;
+
+        tmp = src(sp_rect);
+        auto corr = tmp.dot(sync_pulse) / (double)sync_pulse.total();
+
+        // If previous peak is too far, we keep it but add this value as new
+        if ((index - peaks[peaks.size() - 1].first) > min_distance)
+        {
+            peaks.push_back(std::make_pair(index, corr));
+            index += 500;
+        }
+        else if (corr > peaks[peaks.size() - 1].second)
+        {
+            peaks[peaks.size() - 1] = std::make_pair(index, corr);
+        }
+
+        ++index;
+    }
+
+    return peaks;
+}
+
+
+void scrollImageUp(cv::Mat& img, const cv::Mat& newRow) 
+{
+    // 1. Shift existing data up by one row
+    // Create a Rect (Region of Interest) starting from the second row (y=1)
+    // to the bottom, with the original width
+    cv::Rect roi(0, 1, img.cols, img.rows - 1);
+    cv::Mat src = img(roi);
+
+    // Create a destination Rect starting from the top (y=0)
+    // to the second-to-last row, with the original width
+    cv::Rect dst_roi(0, 0, img.cols, img.rows - 1);
+    cv::Mat dst = img(dst_roi);
+
+    // Copy the source region to the destination region, effectively shifting content up
+    src.copyTo(dst);
+
+    // 2. Add the new row to the bottom
+    // Define the ROI for the very last row
+    cv::Rect bottomRowRoi(0, img.rows - 1, img.cols, 1);
+    cv::Mat bottomRow = img(bottomRowRoi);
+
+    // Copy the new row data into the bottom row ROI
+    if (newRow.cols == img.cols && newRow.type() == img.type()) 
+    {
+        newRow.copyTo(bottomRow);
+    }
+    else 
+    {
+        cerr << "Error: New row dimensions or type mismatch!" << endl;
+    }
+}
+
+//-----------------------------------------------------------------------------
 std::vector<std::complex<double>> polyphase_decimate(const std::vector<std::complex<double>>& x, int32_t decimation_factor, const std::vector<double>& h)
 {
     uint64_t idx, jdx, kdx;
@@ -475,11 +544,15 @@ int main(int argc, char** argv)
     std::complex<double> cf_scale(1.0 / 2048.0, 0.0);
 
     cv::Mat sync_pulse = (cv::Mat_<int16_t>(1,39) << -128, -128, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, -128, -128, -128, -128, -128, -128, -128);
+    cv::Rect sp_rect(0, 0, sync_pulse.total(), 1);
+    cv::Rect img_rect(0, 0, 2080, 1);
 
     cv::Mat cv_x10;
     cv::Mat cv_x11;
     cv::Mat cv_x12;
-    cv::Mat img;
+    cv::Mat img = cv::Mat::zeros(600, 2080, CV_8UC1);
+
+    cv::namedWindow("test", cv::WINDOW_NORMAL);
 
     try{
 
@@ -531,13 +604,13 @@ int main(int argc, char** argv)
         when a capture is complete and ready to be processed
 
         Step 2: A read index variable will be used to track which buffer index to read from.  Process the the buffer
-        - scale data to +/- 1
-        - assume that we no longer need to capture data at an offset therefore no frequency rotation
-        - low pass filter the data
-        - decimate the data (look at combining the filtering and decimation if needed)
-        - concatenate 3 decimated blocks with a rolloing FIFO object that will advance by 80% of a block
-        - take the data in std::XXXX form and convert to cv::XXX structure
+        - scale, filter, decimate, FM demod, filter, decimate, shift, AM demod, min/max scale 
                 
+        Step 3: find the correlation peaks and create image
+
+        Step 4: delete processed samples from x10 based on last peak, but leave 2080 samples ahead of the last peak
+
+        Step 5: repeat with new data
         */
 
         // handle SIGINT signals
@@ -581,10 +654,10 @@ int main(int argc, char** argv)
             // timing variables
             start_time = std::chrono::high_resolution_clock::now();
 
-            for (jdx = 0; jdx < block_size; ++jdx)
-            {
-                cf_samples[jdx] = cf_scale * std::complex<double>(std::real(samples[idx]), std::imag(samples[idx]));
-            }
+            //for (jdx = 0; jdx < block_size; ++jdx)
+            //{
+            //    cf_samples[jdx] = cf_scale * std::complex<double>(std::real(samples[idx]), std::imag(samples[idx]));
+            //}
 
             std::vector<std::complex<double>> tmp_samples;
             std::copy(cf_samples.begin() + idx, // Start iterator for the source range
@@ -607,87 +680,103 @@ int main(int argc, char** argv)
                 x9[jdx] = std::abs(x8[jdx]);
             }
             
-            //cv_x9 = cv_cmplx_abs(cv_x8);
-            //cv::hconcat(cv_x10, cv_x9, cv_x10);
-
             x10.insert(x10.end(), x9.begin(), x9.end());
+
+            /*
+            New test to process entire blocks at a time
+
+            */
+            auto minmax_pair = std::minmax_element(x10.begin(), x10.end());
+            x_min = *minmax_pair.first;
+            x_max = *minmax_pair.second;
+            delta = x_max - x_min;
+
+            cv::Mat cv_x10(1, x10.size(), CV_64FC1, x10.data());
+
+            // Normalize the signal to px luminance values, discretize
+            cv_x11 = ((255.0 / delta) * (cv_x10 - x_min));
+
+            cv_x11.convertTo(cv_x12, CV_16SC1, 1, -128);
+
+            //std::vector<std::pair<int64_t, float>> peaks = { {0, 0 } };
+            std::vector<std::pair<int64_t, double>> peaks = get_correlation_peaks(cv_x12, sync_pulse);
+
+            cv_x11.convertTo(cv_x11, CV_8UC1, 1, 0);
+
+            for (jdx = 0; jdx < peaks.size() - 1; ++jdx)
+            {
+                if (peaks[jdx].first + img_rect.width >= cv_x11.cols)
+                    continue;
+
+                img_rect.x = peaks[jdx].first;
+                //cv_x11(img_rect).copyTo(img(cv::Rect(0, idx, 2080, 1)));
+                cv::Mat image_line = cv_x11(img_rect);
+                scrollImageUp(img, image_line);
+
+                cv::imshow("test", img);
+                cv::waitKey(1);
+            }
+
+            // remove the processed samples
+            uint32_t n = (*(peaks.end() - 1)).first;
+            n = std::max(n - 200UL, 0UL);
+
+            x10.erase(x10.begin(), x10.begin() + n);
+
             stop_time = std::chrono::high_resolution_clock::now();
             duration = std::chrono::duration_cast<chrono::milliseconds>(stop_time - start_time).count();
 
             std::cout << " - " << duration << " milliseconds" << std::endl;
         }
 
-        auto minmax_pair = std::minmax_element(x10.begin(), x10.end());
-        x_min = *minmax_pair.first;
-        x_max = *minmax_pair.second;
-        delta = x_max - x_min;
+        //auto minmax_pair = std::minmax_element(x10.begin(), x10.end());
+        //x_min = *minmax_pair.first;
+        //x_max = *minmax_pair.second;
+        //delta = x_max - x_min;
 
-        cv::Mat cv_x10(1, x10.size(), CV_64FC1, x10.data());
-        
-        //cv::minMaxIdx(cv_x10, &x_min, &x_max);
+        //cv::Mat cv_x10(1, x10.size(), CV_64FC1, x10.data());
+        //
+        //// Normalize the signal to px luminance values, discretize
+        //cv_x11 = ((255.0 / delta) * (cv_x10 - x_min));
 
-        // Normalize the signal to px luminance values, discretize
-        cv_x11 = ((255.0 / delta) * (cv_x10 - x_min));
+        //cv_x11.convertTo(cv_x12, CV_16SC1, 1, -128);
 
-        cv_x11.convertTo(cv_x12, CV_16SC1, 1, -128);
+        ////std::vector<std::pair<int64_t, float>> peaks = { {0, 0 } };
+        //std::vector<std::pair<int64_t, double>> peaks = get_correlation_peaks(cv_x12, sync_pulse);
 
-        std::vector<std::pair<int64_t, float>> peaks = { {0, 0 } };
-        cv::Rect r(0, 0, sync_pulse.total(), 1);
+        ////img = cv::Mat::zeros(peaks.size(), 2080, CV_8UC1);
+        //cv_x11.convertTo(cv_x11, CV_8UC1, 1, 0);
 
-        idx = 0;
-        while (idx <= cv_x12.total() - sync_pulse.total())
-        {
-
-            r.x = idx;
-
-            cv::Mat tmp = cv_x12(r);
-
-            auto corr = tmp.dot(sync_pulse) / (double)sync_pulse.total();
-
-            //c5d(idx) = dot(sync, d5s(idx:idx + numel(sync) - 1)) / numel(sync);
-            //corr = c5d(idx);
-            //auto t2 = (*(peaks.end()-1)).first;
-
-            // If previous peak is too far, we keep it but add this value as new
-            if ((idx - peaks[peaks.size() - 1].first) > min_distance)
-            {
-                //peaks(end + 1, :) = [idx, corr];
-                peaks.push_back(std::make_pair(idx, corr));
-                idx += 500;
-            }
-            //% idx = idx + ceil(mindistance / 4);
-            else if (corr > peaks[peaks.size() - 1].second)
-            {
-                //peaks(end, :) = [idx, corr];
-                peaks[peaks.size() - 1] = std::make_pair(idx, corr);
-            }
-            //end
-            //    idx = idx + 1;
-            //end
-            ++idx;
-        }
-
-        img = cv::Mat::zeros(peaks.size(), 2080, CV_8UC1);
-        cv_x11.convertTo(cv_x11, CV_8UC1, 1, 0);
-
-        //for idx = 1:(size(peaks, 1) - 2)
-        //    img = cat(1, img, d5(peaks(idx, 1) :peaks(idx, 1) + 2079)');
-        //end
-        //int64_t index;
-        r.width = 2080;
-        for (idx = 0; idx < peaks.size()-1; ++idx)
-        {
-            r.x = peaks[idx].first;
-    
-            cv_x11(r).copyTo(img(cv::Rect(0, idx, 2080, 1)));
-
-        }
+        //// use the peak index locations to crop the data and assign to the image row
+        //for (idx = 0; idx < peaks.size()-1; ++idx)
+        //{
+        //    img_rect.x = peaks[idx].first;   
+        //    cv_x11(img_rect).copyTo(img(cv::Rect(0, idx, 2080, 1)));
+        //}
         
         //sdr->stop();
-        cv::namedWindow("test", cv::WINDOW_NORMAL);
         cv::imshow("test", img);
         cv::waitKey(0);
         bp = 1;
+
+        char key = 0;
+        while (key != 'q')
+        {
+            cv::Mat tmp(1, 2080, CV_8UC1);
+            cv::randu(tmp, cv::Scalar(0), cv::Scalar(255));
+
+            start_time = std::chrono::high_resolution_clock::now();
+
+            scrollImageUp(img, tmp);
+
+            stop_time = std::chrono::high_resolution_clock::now();
+            duration = std::chrono::duration_cast<chrono::microseconds>(stop_time - start_time).count();
+            std::cout << " - " << duration << " microseconds" << std::endl;
+
+            cv::imshow("test", img);
+            key = cv::waitKey(10);
+
+        }
 
     }
     catch(std::exception e)
@@ -696,7 +785,7 @@ int main(int argc, char** argv)
         std::cin.ignore();
     }
 
-    
+    cv::destroyAllWindows();
     return 0;
     
 }   // end of main
