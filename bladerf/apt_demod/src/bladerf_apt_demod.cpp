@@ -11,6 +11,8 @@
 
 #include <cstdint>
 #include <cmath>
+#include <csignal>
+
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -19,6 +21,9 @@
 #include <condition_variable>
 #include <complex>
 #include <stdexcept>
+#include <vector>
+#include <algorithm>
+
 
 // bladeRF includes
 //#include <libbladeRF.h>
@@ -35,6 +40,7 @@
 #include "sleep_ms.h"
 #include "dsp/dsp_windows.h"
 #include "iq_utils.h"
+#include "data_logger.h"
 
 #include "opencv_complex_functions.h"
 
@@ -60,17 +66,28 @@ std::condition_variable data_ready_cv;
 volatile std::vector<bool> data_ready(2, false);
 volatile int32_t read_index = 0;
 volatile int32_t write_index = 0;
-volatile bool run = false;
+volatile bool is_running = false;
 
+//-----------------------------------------------------------------------------
+void sig_handler(int sig_num)
+{
+    if ((sig_num == SIGINT) | (sig_num == SIGTERM))
+    {
+        //fprintf(stderr, "received SIGINT: %d\n", sig_num);
+        std::cout << "Received SIGINT: " << sig_num << std::endl;
+        is_running = false;
+        //transmit_thread_running = false;
+        //recieve_thread_running = false;
+    }
 
+}   // end of sig_handler
 
 //-----------------------------------------------------------------------------
 // thread function to simulate data capture
-inline void temp_get_data(bladerf_sample_rate sample_rate)
+inline void temp_get_data(bladerf_sample_rate sample_rate, double capture_time)
 {
     int32_t blade_status = 0;
 
-    double capture_time = 1.0;
     uint64_t block_size = floor(sample_rate * capture_time + 0.5);
 
     iq_data_queue[0].resize(block_size);
@@ -91,7 +108,7 @@ inline void temp_get_data(bladerf_sample_rate sample_rate)
 
     write_index = 0;
     uint64_t sample_index = 0;
-    while (run == true)
+    while (is_running == true)
     {
         // take the samples and place them into the right buffer
         std::copy(samples.begin() + sample_index, // Start iterator for the source range
@@ -102,6 +119,8 @@ inline void temp_get_data(bladerf_sample_rate sample_rate)
         std::this_thread::sleep_for(std::chrono::milliseconds((uint32_t)(capture_time*999)));
 
         write_index = (write_index+1) & 0x01;
+
+        // this just resets the index back to the beginning to forever cycle through the data
         sample_index += block_size;
         if (sample_index >= samples.size())
         {
@@ -124,7 +143,7 @@ void get_data(uint32_t sample_rate, struct bladerf* dev)
     iq_data_queue[0].resize(block_size);
     iq_data_queue[1].resize(block_size);
 
-    while (run)
+    while(is_running == true)
     {
         
         blade_status = bladerf_sync_rx(dev, (void*)iq_data_queue[write_index].data(), block_size, NULL, timeout_ms);
@@ -205,125 +224,6 @@ std::vector<std::complex<double>> polyphase_decimate(const std::vector<std::comp
 
     return output;
 }
-
-/*
-
-template<typename T, typename U>
-std::vector<std::complex<T>> polyphaseDecimate(const std::vector<std::complex<T>>& input, int32_t M, const std::vector<U>& filter)
-{
-
-    const size_t N = input.size();
-    const size_t L = filter.size();               // total FIR length
-
-    if (L % M != 0)
-        throw std::invalid_argument("Filter length must be a multiple of decimation factor M");
-
-    const size_t P = L / M;                       // taps per polyphase branch
-
-    // --------------------------------------------------------------------
-    // Build the polyphase sub-filters:  e_k[n] = h[n*M + k]   (k = 0..M-1)
-    // --------------------------------------------------------------------
-    std::vector<std::vector<T>> branches(M, std::vector<T>(P));
-    for (int k = 0; k < M; ++k) 
-    {
-        for (size_t p = 0; p < P; ++p) 
-        {
-            size_t h_idx = p * M + k;              // causal index in original filter
-            branches[k][p] = filter[h_idx];
-        }
-    }
-
-    // --------------------------------------------------------------------
-    // Output length: floor( (N + L - 1) / M )  (exact formula for FIR decimation)
-    // --------------------------------------------------------------------
-    const size_t outLen = (N + L - 1) / M;
-    std::vector<std::complex<double>> output(outLen, std::complex<double>(0, 0));
-
-    // --------------------------------------------------------------------
-    // Process the input in blocks of M samples.
-    // For each block we run the M polyphase branches in parallel.
-    // --------------------------------------------------------------------
-    for (size_t n = 0; n < N; ++n) 
-    {
-        int k = n % M;                                 // which branch receives this sample
-        const std::complex<double> x = input[n];
-
-        // Add contribution of this sample to its branch's delay line
-        // (we keep a per-branch circular buffer of length P)
-        static thread_local std::vector<std::complex<double>> delay(M); // one per branch
-        if (delay.size() != P) 
-        {
-            for (int b = 0; b < M; ++b)
-            {
-                delay[b].assign(P, std::complex<double>(0, 0));
-            }
-        }
-
-        // Insert new sample at the *end* of the delay line (causal FIR)
-        delay[k].push_back(x);
-        if (delay[k].size() > P)
-        {
-            delay[k].erase(delay[k].begin());
-        }
-
-        // If we have just processed the *last* sample of a decimation block
-        // (i.e. k == M-1) we can emit one output sample.
-        if (k == M - 1) 
-        {
-            size_t outIdx = n / M;                     // decimated time index
-            std::complex<double> y(0, 0);
-
-            for (int b = 0; b < M; ++b) 
-            {
-                // Multiply the branch delay line with its coefficients
-                std::complex<double> branchSum(0, 0);
-                for (size_t p = 0; p < P; ++p) 
-                {
-                    // delay[b][P-1-p] is the oldest sample for tap p
-                    branchSum += delay[b][P - 1 - p] * std::complex<double>(branches[b][p], 0);
-                }
-                y += branchSum;
-            }
-            output[outIdx] = y;
-        }
-    }
-
-    // --------------------------------------------------------------------
-    // Handle the tail: remaining samples after the last full block
-    // --------------------------------------------------------------------
-    size_t samplesAfterLastBlock = N % M;
-    if (samplesAfterLastBlock != 0) 
-    {
-        // We still have partial input; run the remaining branches with zeros
-        // to flush the filter.
-        size_t outIdx = N / M;
-        for (int missing = samplesAfterLastBlock; missing < M; ++missing) 
-        {
-            int k = missing;
-            // push a zero into the missing branch
-            delay[k].push_back(std::complex<double>(0, 0));
-            if (delay[k].size() > P) delay[k].erase(delay[k].begin());
-        }
-
-        std::complex<double> y(0, 0);
-        for (int b = 0; b < M; ++b) 
-        {
-            std::complex<double> branchSum(0, 0);
-            for (size_t p = 0; p < P; ++p) {
-                branchSum += delay[b][P - 1 - p] * std::complex<double>(branches[b][p], 0);
-            }
-            y += branchSum;
-        }
-        output[outIdx] = y;
-    }
-
-    // Trim any excess slots that were allocated because of the (N+L-1)/M formula
-    if (output.size() > outIdx + 1)
-        output.resize(outIdx + 1);
-
-    return output;
-}
-*/
 
 //-----------------------------------------------------------------------------
 template<class T, class U>
@@ -544,6 +444,8 @@ int main(int argc, char** argv)
     auto stop_time = std::chrono::high_resolution_clock::now();
     double duration = std::chrono::duration_cast<chrono::nanoseconds>(stop_time - start_time).count();
 
+    double capture_time = 2.0;
+
     // number of samples per second
     uint64_t sample_rate = 624000;
 
@@ -574,9 +476,6 @@ int main(int argc, char** argv)
 
     cv::Mat sync_pulse = (cv::Mat_<int16_t>(1,39) << -128, -128, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, -128, -128, -128, -128, -128, -128, -128);
 
-    /*cv::Mat cv_x7;
-    cv::Mat cv_x8;
-    cv::Mat cv_x9;*/
     cv::Mat cv_x10;
     cv::Mat cv_x11;
     cv::Mat cv_x12;
@@ -589,7 +488,6 @@ int main(int argc, char** argv)
         //std::unique_ptr<SDR_BASE> sdr = SDR_BASE::build();
 
         //sample_rate = sdr->get_rx_samplerate();
-        // number of samples is equal to the number seconds to record times the samplerate
 
         std::vector<std::complex<int16_t>> samples;
         //std::string filename = "../../rx_record/recordings/137M800_0M624__640s_test4.bin";
@@ -639,12 +537,22 @@ int main(int argc, char** argv)
         - decimate the data (look at combining the filtering and decimation if needed)
         - concatenate 3 decimated blocks with a rolloing FIFO object that will advance by 80% of a block
         - take the data in std::XXXX form and convert to cv::XXX structure
-        -        
-        
+                
         */
 
+        // handle SIGINT signals
+        if (signal(SIGINT, sig_handler) == SIG_ERR)
+        {
+            std::cerr << warning << "Unable to catch SIGINT signals" << std::endl;
+        }
+        // handle SIGTERM signals
+        if (signal(SIGTERM, sig_handler) == SIG_ERR)
+        {
+            std::cerr << warning << "Unable to catch SIGTERM signals" << std::endl;
+        }
+
         // start the thread to capture data
-        run = true;
+        is_running = true;
         //std::thread data_capture_thread = std::thread(temp_get_data, sample_rate);
 
         //-----------------------------------------------------------------------------
@@ -658,12 +566,10 @@ int main(int argc, char** argv)
         }
 
         // look at block processing like we would do with the SDR input
-        double capture_time = 2.0;
         uint64_t block_size = floor(sample_rate * capture_time + 0.5);
 
         uint64_t num_blocks = floor((num_samples) / (double)block_size);
 
-        //cv_x10 = cv::Mat(1, 1, CV_64FC1, cv::Scalar(0.0));
         std::vector<double> x10;
 
         std::cout << "number of blocks to process: " << num_blocks << std::endl;
@@ -674,6 +580,11 @@ int main(int argc, char** argv)
             
             // timing variables
             start_time = std::chrono::high_resolution_clock::now();
+
+            for (jdx = 0; jdx < block_size; ++jdx)
+            {
+                cf_samples[jdx] = cf_scale * std::complex<double>(std::real(samples[idx]), std::imag(samples[idx]));
+            }
 
             std::vector<std::complex<double>> tmp_samples;
             std::copy(cf_samples.begin() + idx, // Start iterator for the source range
