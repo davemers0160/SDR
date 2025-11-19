@@ -534,7 +534,7 @@ std::vector<T> am_demod(std::vector<T>& v1, T scale)
 int main(int argc, char** argv)
 {
     int bp = 0;
-    int64_t idx, blk_idx;
+    int64_t idx, jdx, blk_idx;
     
     uint64_t num_samples;
     //uint64_t block_size = 624000;
@@ -548,20 +548,11 @@ int main(int argc, char** argv)
     uint64_t sample_rate = 624000;
 
     // number of taps to create a low pass filters
-    //uint64_t rf_taps = 201;
     uint64_t fm_taps = 200;
     uint64_t audio_taps = 195;
 
-    // offset from the center where we want to demodulate(Hz)
-    int64_t rf_freq_offset = 0; // 115750;
-
-    // rf frequency filter cutoff
-    //int64_t fc_rf = 40000;
-
     // decimation factor
     int64_t rf_decimation_factor = 10;
-
-    // the FM broadcast signal has a bandwidth(Hz)
     double desired_rf_sample_rate = (int64_t)(sample_rate / (double)rf_decimation_factor);
 
     // FM cutoff frequency
@@ -569,7 +560,6 @@ int main(int argc, char** argv)
 
     // audio sample rate ==> 5 times the data bit rate
     int64_t audio_decimation_factor = 15;
-    //int64_t am_sample_rate = 4160;
     double desired_audio_sample_rate = desired_rf_sample_rate/(double)audio_decimation_factor;
 
     // audio filter cutoff frequency(Hz)
@@ -582,17 +572,11 @@ int main(int argc, char** argv)
 
     std::complex<double> cf_scale(1.0 / 2048.0, 0.0);
 
-    //std::vector<float> sync_pulse = { -128, -128, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, -128, -128, -128, -128, -128, -128, -128 };
-
     cv::Mat sync_pulse = (cv::Mat_<int16_t>(1,39) << -128, -128, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, -128, -128, -128, -128, -128, -128, -128);
 
-    //cv::Mat cv_x3;
-    //cv::Mat cv_x4;
-    //cv::Mat cv_x5;
-    //cv::Mat cv_x6;
-    cv::Mat cv_x7;
+    /*cv::Mat cv_x7;
     cv::Mat cv_x8;
-    cv::Mat cv_x9;
+    cv::Mat cv_x9;*/
     cv::Mat cv_x10;
     cv::Mat cv_x11;
     cv::Mat cv_x12;
@@ -606,14 +590,12 @@ int main(int argc, char** argv)
 
         //sample_rate = sdr->get_rx_samplerate();
         // number of samples is equal to the number seconds to record times the samplerate
-        num_samples = 15 * 3600 * sample_rate;
 
         std::vector<std::complex<int16_t>> samples;
         //std::string filename = "../../rx_record/recordings/137M800_0M624__640s_test4.bin";
         //std::string filename = "../../rx_record/recordings/137M000_1M000__600s_20221120_0955.bin";
 //        std::string filename = "D:/data/RF/20240224/blade_F137.620M_SR0.624M_20240224_194922.sc16";
         std::string filename = "D:/data/RF/20240224/blade_F137.912M_SR0.624M_20240224_222353.sc16";
-
 
         read_iq_data(filename, samples);
 
@@ -622,47 +604,25 @@ int main(int argc, char** argv)
         //-----------------------------------------------------------------------------
         // setup all of the filters and rotations
         //-----------------------------------------------------------------------------
-
-        // decimation factor
-        //int64_t rf_decimation_factor = (int64_t)(sample_rate / (double)desired_rf_sample_rate);
-
-        // calculate the new sampling rate based on the original and the decimated sample rate
-        //double decimated_sample_rate = sample_rate / (double)rf_decimation_factor;
-
         // RF low pass filter
-        //std::vector<double> lpf_rf = DSP::create_fir_filter<double>(rf_taps, (desired_rf_sample_rate / 2.0) / (double)sample_rate, &DSP::hann_window);
-        //cv::Mat cv_lpf_rf(1, lpf_rf.size(), CV_64FC1, lpf_rf.data());
-
         std::vector<double> lpf_fm = DSP::create_fir_filter<double>(fm_taps, fc_fm / desired_rf_sample_rate, &DSP::hann_window);
         cv::Mat cv_lpf_fm(1, lpf_fm.size(), CV_64FC1, lpf_fm.data());
 
-        // find a decimation rate to achieve audio sampling rate
-        //int64_t audio_decimation_factor = (int64_t)(decimated_sample_rate / (double)am_sample_rate);
-        //double decimated_audio_sample_rate = decimated_sample_rate / (double)audio_decimation_factor;
-
         // scaling for FM demodulation
         double phasor_scale = 1.0 / (2.0 * M_PI);
-
-        // FM low pass de-emphasis filter
-        //std::vector<double> lpf_fm = DSP::create_fir_filter<double>(fm_taps, 1.0/(double)(decimated_sample_rate * 75e-6), &DSP::rectangular_window);
-        //cv::Mat cv_lpf_fm(1, lpf_fm.size(), CV_64FC1, lpf_fm.data());
 
         // Audio low pass filter coefficients
         std::vector<double> lpf_am = DSP::create_fir_filter<double>(audio_taps, (fc_am) / (double)desired_rf_sample_rate, &DSP::hann_window);
         cv::Mat cv_lpf_am(1, lpf_am.size(), CV_64FC1, lpf_am.data());
 
-
         // print out the specifics
         std::cout << std::endl << "------------------------------------------------------------------" << std::endl;
         std::cout << "fs:         " << sample_rate << std::endl;
-        //std::cout << "rx_freq:    " << sdr->get_rx_frequency() << std::endl;
-        std::cout << "f_offset:   " << rf_freq_offset << std::endl;
+        //std::cout << "f_offset:   " << rf_freq_offset << std::endl;
         std::cout << "dec_rate:   " << rf_decimation_factor << std::endl;
         std::cout << "channel_bw: " << desired_rf_sample_rate << std::endl;
-        //std::cout << "fs_d:       " << decimated_sample_rate << std::endl;
         std::cout << "dec_audio:  " << audio_decimation_factor << std::endl;
         std::cout << "fs_audio:   " << desired_audio_sample_rate << std::endl;
-        //std::cout << "fs_audio:   " << decimated_audio_sample_rate << std::endl;
         std::cout << "------------------------------------------------------------------" << std::endl << std::endl;
               
         //sdr->start_single(cf_samples, num_samples);
@@ -679,49 +639,23 @@ int main(int argc, char** argv)
         - decimate the data (look at combining the filtering and decimation if needed)
         - concatenate 3 decimated blocks with a rolloing FIFO object that will advance by 80% of a block
         - take the data in std::XXXX form and convert to cv::XXX structure
-        - 
-        
+        -        
         
         */
-
 
         // start the thread to capture data
         run = true;
         //std::thread data_capture_thread = std::thread(temp_get_data, sample_rate);
 
-
         //-----------------------------------------------------------------------------
         // start the demodulation process
         //-----------------------------------------------------------------------------
-
-
-        //// take the complex float vector data and rotate it
-        ////cv::Mat cv_fc_rot(1, fc_rot.size(), CV_64FC2, fc_rot.data());
-        ////cv::Mat cv_samples(1, cf_samples.size(), CV_64FC2, cf_samples.data());
-        ////cv::Mat x2 = mul_cmplx(cv_samples, cv_fc_rot);
-        ////std::vector<complex<float>> x2 = vec_ptws_mul(cf_samples, fc_rot);
         std::vector<std::complex<double>> cf_samples(num_samples);
         for (idx = 0; idx < num_samples; ++idx)
         {
             cf_samples[idx] = cf_scale * std::complex<double>(std::real(samples[idx]), std::imag(samples[idx]));
             //cf_samples[idx] = cf_scale * std::complex<double>(std::real(samples[idx]), std::imag(samples[idx])) * (complex<double>)std::exp(-2.0 * 1i * M_PI * (f_offset / (double)sample_rate) * (double)idx);
-
         }
-        //cv::Mat cv_x1(1, num_samples, CV_64FC2, cf_samples.data());
-
-        ////samples.clear();
-
-
-        //// apply low pass filter to the signal 
-        ////cv::filter2D(cv_x1, cv_x3, CV_64FC2, cv_lpf_rf, cv::Point(-1, -1), cv::BORDER_REFLECT_101);
-        //cv::filter2D(cv_x1, cv_x3, CV_64FC2, cv_lpf_fm, cv::Point(-1, -1), cv::BORDER_REFLECT_101);
-
-
-        // decimate the signal
-        //x4 = x3(dec_seq);
-        //std::vector<complex<float>> x4 = decimate_vec(cf_samples, rf_decimation_factor);
-        //std::vector<complex<float>> x4 = decimate_vec(x3, rf_decimation_factor);
-        //cv_cmplx_decimate(cv_x3, cv_x4, (double)rf_decimation_factor);
 
         // look at block processing like we would do with the SDR input
         double capture_time = 2.0;
@@ -729,13 +663,16 @@ int main(int argc, char** argv)
 
         uint64_t num_blocks = floor((num_samples) / (double)block_size);
 
-        cv_x10 = cv::Mat(1, 1, CV_64FC1, cv::Scalar(0.0));
+        //cv_x10 = cv::Mat(1, 1, CV_64FC1, cv::Scalar(0.0));
+        std::vector<double> x10;
+
         std::cout << "number of blocks to process: " << num_blocks << std::endl;
 
         for (idx = 0; idx < num_samples; idx += block_size)
         {
             std::cout << "processing block: " << idx; // << std::endl;
-                // timing variables
+            
+            // timing variables
             start_time = std::chrono::high_resolution_clock::now();
 
             std::vector<std::complex<double>> tmp_samples;
@@ -744,105 +681,44 @@ int main(int argc, char** argv)
                 std::back_inserter(tmp_samples));
 
             std::vector<std::complex<double>> x4 = polyphase_decimate(tmp_samples, rf_decimation_factor, lpf_fm);
-            //cv::Mat cv_x4(1, v_x4.size(), CV_64FC2, v_x4.data());
 
-            //cv::filter2D(cv_x4, cv_x5, CV_64FC2, cv_lpf_fm, cv::Point(-1, -1), cv::BORDER_REFLECT_101);
-            //for(idx=0; idx<10; ++idx)
-            //    std::cout << x4[idx] << std::endl;
-
-            // polar discriminator - x4(2:end).*conj(x4(1:end - 1));
-            //x5 = x4(af::seq(1, af::end, 1)) * af::conjg(x4(af::seq(0, -2, 1)));
-            //x5 = af::atan2(af::imag(x5), af::real(x5)) * phasor_scale;
             std::vector<double> x6 = polar_discriminator(x4, phasor_scale);
-            //std::vector<float> x5 = polar_discriminator(x4, phasor_scale);
-            //cv_polar_discriminator(cv_x4, cv_x6, phasor_scale);
-            //cv::Mat cv_x6(1, x6.size(), CV_64FC1, x6.data());
 
-            //for (idx = 0; idx < 10; ++idx)
-            //    std::cout << x6[idx] << std::endl;
-
-            // run the audio through the low pass de-emphasis filter
-            //x6 = af::fir(af_lpf_de, x5);
-            //std::vector<float> x6 = filter_vec(x5, lpf_audio);
-
-            // run the audio through a second low pass filter before decimation
-            //x6 = af::fir(af_lpf_a, x6);
             std::vector<std::complex<double>> x7 = frequency_shift(x6, (double)am_offset / (double)desired_rf_sample_rate);
 
-//            cv::Mat cv_x7(1, x7.size(), CV_64FC2, x7.data());
-
-            //for (idx = 0; idx < 10; ++idx)
-            //    std::cout << x7[idx] << std::endl;
-
-            //cv_x7 = cv_frequency_rotate(cv_x6, (double)am_offset / (double)desired_rf_sample_rate);
-
-            //cv::filter2D(cv_x7, cv_x8, CV_64FC1, cv_lpf_am, cv::Point(-1, -1), cv::BORDER_REFLECT_101);
-
+            // decimate and filter the audio sequence
             std::vector<std::complex<double>> x8 = polyphase_decimate(x7, audio_decimation_factor, lpf_am);
+            //cv::Mat cv_x8(1, x8.size(), CV_64FC2, x8.data());
 
-            cv::Mat cv_x8(1, x8.size(), CV_64FC2, x8.data());
+            std::vector<double> x9(x8.size());
+            for (jdx = 0; jdx < x8.size(); ++jdx)
+            {
+                x9[jdx] = std::abs(x8[jdx]);
+            }
+            
+            //cv_x9 = cv_cmplx_abs(cv_x8);
+            //cv::hconcat(cv_x10, cv_x9, cv_x10);
 
-            // decimate the audio sequence
-            //x7 = x6(seq_audio);
-            //std::vector<float> x7 = decimate_vec(x6, audio_decimation_factor);
-            //cv_decimate(cv_x6, cv_x7, audio_decimation_factor);
-
-
-            // scale the audio from -1 to 1
-            //x7 = (x7 * (1.0 / (af::max<float>(af::abs(x7)))));
-
-            // shift to 0 to 2 and then scale by 60
-            //x7 = ((x7+1) * 40).as(af::dtype::u8);
-            //std::vector<float> x8 = scale_vec(x7, 5.0f);
-
-            //std::vector<float> x9 = am_demod(x8, 2.0f * std::cosf(2.0 * pi * fc_audio / (float)decimated_audio_sample_rate));
-
-            //cv::Mat cv_x9 = 5.0 * cv_x7;
-
-            cv_x9 = cv_cmplx_abs(cv_x8);
-
-            // downsample the AM
-            //cv::Mat cv_x9a;
-            //cv_decimate(cv_x9, cv_x9a, audio_decimation_factor);
-
-            cv::hconcat(cv_x10, cv_x9, cv_x10);
+            x10.insert(x10.end(), x9.begin(), x9.end());
             stop_time = std::chrono::high_resolution_clock::now();
             duration = std::chrono::duration_cast<chrono::milliseconds>(stop_time - start_time).count();
 
             std::cout << " - " << duration << " milliseconds" << std::endl;
-
         }
 
-        cv_x10 = cv_x10.colRange(1, cv_x10.cols).clone();
-        cv::minMaxIdx(cv_x10, &x_min, &x_max);
-
-
-        //auto result = std::minmax_element(x9.begin(), x9.end());
-        //auto x_max = *std::max_element(x9.begin(), x9.end());
-        //float x_min = *result.first;
-        //float x_max = *result.second;
-
+        auto minmax_pair = std::minmax_element(x10.begin(), x10.end());
+        x_min = *minmax_pair.first;
+        x_max = *minmax_pair.second;
         delta = x_max - x_min;
 
-        // Normalize the signal to px luminance values, discretize
-        //std::vector<float> x11(x9.size());
+        cv::Mat cv_x10(1, x10.size(), CV_64FC1, x10.data());
+        
+        //cv::minMaxIdx(cv_x10, &x_min, &x_max);
 
+        // Normalize the signal to px luminance values, discretize
         cv_x11 = ((255.0 / delta) * (cv_x10 - x_min));
 
-        //cv_x11 = clamp(cv_x11, 0, 255);
-
-
         cv_x11.convertTo(cv_x12, CV_16SC1, 1, -128);
-
-        //cv_x11 -= 128.0;
-
-        //float tmp;
-        //
-        //for(idx = 0; idx < x9.size(); ++idx)
-        //{
-        //    tmp = floor((127 * (x9[idx] - x_min) / delta) + 0.5);
-        //    x11[idx] = tmp < -128 ? -128 : (tmp > 127 ? 127 : tmp);
-        //}
 
         std::vector<std::pair<int64_t, float>> peaks = { {0, 0 } };
         cv::Rect r(0, 0, sync_pulse.total(), 1);
