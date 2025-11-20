@@ -23,6 +23,7 @@
 #include <stdexcept>
 #include <vector>
 #include <algorithm>
+#include <string>
 
 
 // bladeRF includes
@@ -68,6 +69,9 @@ volatile int32_t read_index = 1;
 volatile int32_t write_index = 0;
 volatile bool is_running = false;
 volatile bool data_ready = false;
+
+const uint32_t timeout_ms = 10000;
+
 
 //-----------------------------------------------------------------------------
 void sig_handler(int sig_num)
@@ -139,14 +143,17 @@ inline void temp_get_data(bladerf_sample_rate sample_rate, double capture_time)
         }
     }
 
+    std::cout << info << "Thread stopped!" << std::endl;
+
 }
 
 
 //-----------------------------------------------------------------------------
 void get_data(struct bladerf* dev, bladerf_sample_rate sample_rate, double capture_time)
 {
-    int blade_status;
-    uint32_t timeout_ms = 10000;
+    int32_t blade_status;
+
+    std::cout << info << "Starting thread..." << std::endl;
 
     uint64_t block_size = floor(sample_rate * capture_time + 0.5);
 
@@ -159,14 +166,15 @@ void get_data(struct bladerf* dev, bladerf_sample_rate sample_rate, double captu
         blade_status = bladerf_sync_rx(dev, (void*)iq_data_queue[write_index].data(), block_size, NULL, timeout_ms);
         if (blade_status != 0)
         {
-            std::cout << "Unable to get the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+            std::cout << warning << "Unable to get the required number of samples: " << std::string(bladerf_strerror(blade_status)) << std::endl;
         }
-        //data_ready[write_index] = true;
 
         write_index = (write_index + 1) & 0x01;
-
+        read_index = (read_index + 1) & 0x01;
+        data_ready = true;
     }
 
+    std::cout << info << "Thread stopped!" << std::endl;
 }
 
 //-----------------------------------------------------------------------------
@@ -204,8 +212,8 @@ inline std::vector<std::pair<int64_t, double>> get_correlation_peaks(cv::Mat src
     return peaks;
 }
 
-
-void scrollImageUp(cv::Mat& img, const cv::Mat& newRow) 
+//-----------------------------------------------------------------------------
+void add_line_to_image(cv::Mat& img, const cv::Mat& new_row) 
 {
     // 1. Shift existing data up by one row
     // Create a Rect (Region of Interest) starting from the second row (y=1)
@@ -223,19 +231,19 @@ void scrollImageUp(cv::Mat& img, const cv::Mat& newRow)
 
     // 2. Add the new row to the bottom
     // Define the ROI for the very last row
-    cv::Rect bottomRowRoi(0, img.rows - 1, img.cols, 1);
-    cv::Mat bottomRow = img(bottomRowRoi);
+    cv::Rect bottom_row_roi(0, img.rows - 1, img.cols, 1);
+    cv::Mat bottom_row = img(bottom_row_roi);
 
     // Copy the new row data into the bottom row ROI
-    if (newRow.cols == img.cols && newRow.type() == img.type()) 
+    if (new_row.cols == img.cols && new_row.type() == img.type())
     {
-        newRow.copyTo(bottomRow);
+        new_row.copyTo(bottom_row);
     }
     else 
     {
-        cerr << "Error: New row dimensions or type mismatch!" << endl;
+        std::cerr << warning << "Error: New row dimensions or type mismatch!" << std::endl;
     }
-}
+}   // end of add_line_to_image
 
 //-----------------------------------------------------------------------------
 std::vector<std::complex<double>> polyphase_decimate(const std::vector<std::complex<double>>& x, int32_t decimation_factor, const std::vector<double>& h)
@@ -447,22 +455,22 @@ std::vector<T> filter_vec(std::vector<T>& v1, std::vector<U>& h)
 }   // end of filter_vec
 
 //-----------------------------------------------------------------------------
-template <typename T>
-std::vector<T> scale_vec(std::vector<T>& v1, T scale)
-{
-    std::vector<T> res(v1.size());
-
-    auto v1_itr = v1.begin();
-    auto v1_end = v1.end();
-    auto res_itr = res.begin();
-
-    for (; v1_itr != v1_end; ++v1_itr, ++res_itr)
-    {
-        *res_itr = scale * (*v1_itr);
-    }
-
-    return res;
-}
+//template <typename T>
+//std::vector<T> scale_vec(std::vector<T>& v1, T scale)
+//{
+//    std::vector<T> res(v1.size());
+//
+//    auto v1_itr = v1.begin();
+//    auto v1_end = v1.end();
+//    auto res_itr = res.begin();
+//
+//    for (; v1_itr != v1_end; ++v1_itr, ++res_itr)
+//    {
+//        *res_itr = scale * (*v1_itr);
+//    }
+//
+//    return res;
+//}
 
 //-----------------------------------------------------------------------------
 template <typename T>
@@ -486,28 +494,6 @@ inline std::vector<std::complex<double>> frequency_shift(const std::vector<T>& d
     return res;
 }
 
-//-----------------------------------------------------------------------------
-template <typename T>
-std::vector<T> am_demod(std::vector<T>& v1, T scale)
-{
-    uint64_t idx;
-//    std::vector<T> res(v1.size() - 1);
-    std::vector<T> res(v1.size());
-
-    auto v1_itr = v1.begin();
-    auto v1_end = v1.end();
-    auto res_itr = res.begin();
-
-    for (idx=0; idx< v1.size(); ++idx)
-    {
-        //res[idx-1] = std::sqrt(v1[idx]*v1[idx] + v1[idx-1]*v1[idx-1] - scale * v1[idx] * v1[idx - 1]);
-
-        res[idx] = abs(v1[idx]);
-    }
-
-    return res;
-}   // end of am_demod
-
 
 //-----------------------------------------------------------------------------
 int main(int argc, char** argv)
@@ -523,10 +509,26 @@ int main(int argc, char** argv)
     auto stop_time = std::chrono::high_resolution_clock::now();
     double duration = std::chrono::duration_cast<chrono::nanoseconds>(stop_time - start_time).count();
 
-    double capture_time = 2.0;
+    // bladeRF variable
+    struct bladerf_devinfo* device_list = NULL;
+    struct bladerf_devinfo dev_info;
+    struct bladerf* dev;
+    int bladerf_num;
+    int blade_status;
 
-    // number of samples per second
-    uint64_t sample_rate = 624000;
+    bladerf_channel rx = BLADERF_CHANNEL_RX(0);
+    bladerf_frequency rx_freq = 137620000;
+    bladerf_sample_rate sample_rate = 624000;
+    bladerf_bandwidth rx_bw = 624000;
+    bladerf_gain rx1_gain = 65;
+
+    const uint32_t num_buffers = 16;
+    const uint32_t buffer_size = 1024 * 4;        // must be a multiple of 1024
+    const uint32_t num_transfers = 8;
+    int32_t num_devices;
+
+    // block capture time
+    double capture_time = 2.0;
 
     // number of taps to create a low pass filters
     uint64_t fm_taps = 200;
@@ -551,55 +553,104 @@ int main(int argc, char** argv)
 
     double x_min, x_max, delta;
 
+    // sample scale value to bring samples to +/- 1
     std::complex<double> cf_scale(1.0 / 2048.0, 0.0);
 
+    // scaling for FM demodulation
+    double phasor_scale = 1.0 / (2.0 * M_PI);
+
+    // apt sync pulse
     cv::Mat sync_pulse = (cv::Mat_<int16_t>(1,39) << -128, -128, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, 127, 127, -128, -128, -128, -128, -128, -128, -128, -128, -128);
     cv::Rect sp_rect(0, 0, sync_pulse.total(), 1);
     cv::Rect img_rect(0, 0, 2080, 1);
 
+    //-----------------------------------------------------------------------------
+    // setup all of the filters and rotations
+    //-----------------------------------------------------------------------------
+    // RF low pass filter
+    std::vector<double> lpf_fm = DSP::create_fir_filter<double>(fm_taps, fc_fm / desired_rf_sample_rate, &DSP::hann_window);
+
+    // Audio low pass filter coefficients
+    std::vector<double> lpf_am = DSP::create_fir_filter<double>(audio_taps, (fc_am) / (double)desired_rf_sample_rate, &DSP::hann_window);
+        
+    std::vector<double> x10;
     cv::Mat cv_x10;
     cv::Mat cv_x11;
     cv::Mat cv_x12;
-    cv::Mat img = cv::Mat::zeros(600, 2080, CV_8UC1);
+    cv::Mat img = cv::Mat::zeros(700, 2080, CV_8UC1);
 
     cv::namedWindow("test", cv::WINDOW_NORMAL);
+    cv::imshow("test", img);
+    cv::waitKey(10);
 
-    try{
-
-        // test code
-
+    try
+    {
         //std::unique_ptr<SDR_BASE> sdr = SDR_BASE::build();
+        if (argc < 2) 
+        {
+            std::cerr << warning << "Usage: " << argv[0] << " <Frequncy in MHz>" << std::endl;
+            rx_freq = 137620000;
+        }
+        else
+        {
+            rx_freq = static_cast<bladerf_frequency>(std::stod(argv[1]) * 1e6);
+        }
 
-        //sample_rate = sdr->get_rx_samplerate();
-
-        std::vector<std::complex<int16_t>> samples;
-        //std::string filename = "../../rx_record/recordings/137M800_0M624__640s_test4.bin";
-        //std::string filename = "../../rx_record/recordings/137M000_1M000__600s_20221120_0955.bin";
-//        std::string filename = "D:/data/RF/20240224/blade_F137.620M_SR0.624M_20240224_194922.sc16";
-        std::string filename = "D:/data/RF/20240224/blade_F137.912M_SR0.624M_20240224_222353.sc16";
-
-        read_iq_data(filename, samples);
-
-        num_samples = samples.size();
+        num_devices = bladerf_get_device_list(&device_list);
+        bladerf_num = select_bladerf(num_devices, device_list);
 
         //-----------------------------------------------------------------------------
-        // setup all of the filters and rotations
-        //-----------------------------------------------------------------------------
-        // RF low pass filter
-        std::vector<double> lpf_fm = DSP::create_fir_filter<double>(fm_taps, fc_fm / desired_rf_sample_rate, &DSP::hann_window);
-        cv::Mat cv_lpf_fm(1, lpf_fm.size(), CV_64FC1, lpf_fm.data());
+        if (bladerf_num < 0)
+        {
+            std::cout << warning << "could not detect any bladeRF devices..." << std::endl;
+            std::cin.ignore();
+            return 0;
+        }
+        std::cout << std::endl;
 
-        // scaling for FM demodulation
-        double phasor_scale = 1.0 / (2.0 * M_PI);
+        blade_status = bladerf_open(&dev, ("*:serial=" + std::string(device_list[bladerf_num].serial)).c_str());
+        if (blade_status != 0)
+        {
+            std::cout << warning << "Unable to open device: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+            return blade_status;
+        }
 
-        // Audio low pass filter coefficients
-        std::vector<double> lpf_am = DSP::create_fir_filter<double>(audio_taps, (fc_am) / (double)desired_rf_sample_rate, &DSP::hann_window);
-        cv::Mat cv_lpf_am(1, lpf_am.size(), CV_64FC1, lpf_am.data());
+        blade_status = bladerf_get_devinfo(dev, &dev_info);
+        if (blade_status != 0)
+        {
+            std::cout << warning << "Unable to get the device info: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+            return blade_status;
+        }
+        std::cout << std::endl << dev_info << std::endl;
+
+        // set the frequency, sample_rate and bandwidth
+        blade_status = bladerf_set_frequency(dev, rx, rx_freq);
+        blade_status = bladerf_get_frequency(dev, rx, &rx_freq);
+        blade_status = bladerf_set_sample_rate(dev, rx, sample_rate, &sample_rate);
+        blade_status = bladerf_set_bandwidth(dev, rx, rx_bw, &rx_bw);
+
+        // configure the sync to receive/transmit data
+        blade_status = bladerf_sync_config(dev, BLADERF_RX_X1, BLADERF_FORMAT_SC16_Q11, num_buffers, buffer_size, num_transfers, timeout_ms);
+
+        // enable the rx channel RF frontend
+        blade_status = bladerf_enable_module(dev, BLADERF_RX, true);
+
+        // the gain must be set after the module has been enabled
+        blade_status = bladerf_set_gain_mode(dev, rx, BLADERF_GAIN_MANUAL);
+        blade_status = bladerf_set_gain(dev, rx, rx1_gain);
+        blade_status = bladerf_get_gain(dev, rx, &rx1_gain);
 
         // print out the specifics
         std::cout << std::endl << "------------------------------------------------------------------" << std::endl;
-        std::cout << "fs:         " << sample_rate << std::endl;
-        //std::cout << "f_offset:   " << rf_freq_offset << std::endl;
+        std::cout << "sample_rate: " << sample_rate << std::endl;
+        std::cout << "rx_freq:     " << rx_freq << std::endl;
+        std::cout << "rx_bw:       " << rx_bw << std::endl;
+        std::cout << "rx1_gain:    " << rx1_gain << std::endl;
+        //std::cout << "time:        " << duration << std::endl;
+        std::cout << "------------------------------------------------------------------" << std::endl << std::endl;
+
+        // print out the specifics
+        //std::cout << std::endl << "------------------------------------------------------------------" << std::endl;
         std::cout << "dec_rate:   " << rf_decimation_factor << std::endl;
         std::cout << "channel_bw: " << desired_rf_sample_rate << std::endl;
         std::cout << "dec_audio:  " << audio_decimation_factor << std::endl;
@@ -636,7 +687,10 @@ int main(int argc, char** argv)
 
         // start the thread to capture data
         is_running = true;
-        std::thread data_capture_thread = std::thread(temp_get_data, sample_rate, capture_time);
+        // file read data capture thread
+        //std::thread data_capture_thread = std::thread(temp_get_data, sample_rate, capture_time);
+        // bladerf data capture thread
+        std::thread data_capture_thread = std::thread(get_data, std::ref(dev), sample_rate, capture_time);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -653,21 +707,19 @@ int main(int argc, char** argv)
 
         // look at block processing like we would do with the SDR input
         uint64_t block_size = floor(sample_rate * capture_time + 0.5);
-        uint64_t num_blocks = floor((num_samples) / (double)block_size);
-
-        std::vector<double> x10;
+        //uint64_t num_blocks = floor((num_samples) / (double)block_size);
 
         while (data_ready == false);
 
         //std::cout << "number of blocks to process: " << num_blocks << std::endl;
-        std::cout << "processing block size: " << block_size << std::endl;
+        std::cout << info << "processing block size: " << block_size << std::endl;
 
         //for (idx = 0; idx < num_samples; idx += block_size)
         while(is_running == true)
         {
             data_ready = false;
 //            std::cout << "processing block: " << idx; // << std::endl;
-            std::cout << "processing block: " << block_size; // << std::endl;
+            //std::cout << "processing block: " << block_size; // << std::endl;
 
             // timing variables
             start_time = std::chrono::high_resolution_clock::now();
@@ -703,10 +755,6 @@ int main(int argc, char** argv)
             
             x10.insert(x10.end(), x9.begin(), x9.end());
 
-            /*
-            New test to process entire blocks at a time
-
-            */
             auto minmax_pair = std::minmax_element(x10.begin(), x10.end());
             x_min = *minmax_pair.first;
             x_max = *minmax_pair.second;
@@ -732,7 +780,7 @@ int main(int argc, char** argv)
                 img_rect.x = peaks[jdx].first;
                 //cv_x11(img_rect).copyTo(img(cv::Rect(0, idx, 2080, 1)));
                 cv::Mat image_line = cv_x11(img_rect);
-                scrollImageUp(img, image_line);
+                add_line_to_image(img, image_line);
 
                 cv::imshow("test", img);
                 cv::waitKey(1);
@@ -747,7 +795,7 @@ int main(int argc, char** argv)
             stop_time = std::chrono::high_resolution_clock::now();
             duration = std::chrono::duration_cast<chrono::milliseconds>(stop_time - start_time).count();
 
-            std::cout << " - " << duration << " milliseconds" << std::endl;
+            std::cout << info << "Processing time: " << duration << " milliseconds" << std::endl;
 
             while (data_ready == false);
         }
@@ -778,6 +826,8 @@ int main(int argc, char** argv)
         //}
         
         //sdr->stop();
+        std::cout << info << "Press any key to close!" << std::endl;
+
         cv::imshow("test", img);
         cv::waitKey(0);
         bp = 1;
