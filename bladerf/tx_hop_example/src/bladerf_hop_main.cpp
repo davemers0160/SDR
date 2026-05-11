@@ -101,7 +101,7 @@ int main(int argc, char** argv)
     std::vector<std::complex<int16_t>> samples;
     std::string iq_filename;
 
-    std::vector<hop_params> hops;
+    std::vector<hop_parameters> hops;
 
     struct bladerf_metadata meta;
     memset(&meta, 0, sizeof(meta));
@@ -183,27 +183,27 @@ int main(int argc, char** argv)
         {
 
             //auto f = start_freq + (idx * hop_step);
-            hop_params p;
+            hop_parameters p;
             //p.f = start_freq + (idx * hop_step);
-            p.f = hop_sequence[idx];
+            p.freq = hop_sequence[idx];
 
             hops.push_back(p);
 
-            blade_status = bladerf_set_frequency(dev, tx, hops[idx].f);
+            blade_status = bladerf_set_frequency(dev, tx, hops[idx].freq);
             if (blade_status != 0)
             {
-                std::cout << "Failed to set frequency: " << hops[idx].f << "Hz.   error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                std::cout << "Failed to set frequency: " << hops[idx].freq << "Hz.   error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
                 std::cin.ignore();
             }
 
             //blade_status = bladerf_get_quick_tune(dev, tx, &hops[idx].qt);
             //if (blade_status != 0)
             //{
-            //    std::cout << "Failed to get quick tune: " << hops[idx].f << "Hz.   error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+            //    std::cout << "Failed to get quick tune: " << hops[idx].freq << "Hz.   error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
             //    std::cin.ignore();
             //}
 
-            std::cout << idx << ": " << hops[idx].f << ", nios_profile: " << hops[idx].qt.nios_profile << ", rffe_profile: " << (uint16_t)hops[idx].qt.rffe_profile << std::endl;
+            std::cout << idx << ": " << hops[idx].freq << ", nios_profile: " << hops[idx].qt_params.nios_profile << ", rffe_profile: " << (uint16_t)hops[idx].qt_params.rffe_profile << std::endl;
 
         }
 
@@ -267,7 +267,7 @@ int main(int argc, char** argv)
             break;
         }
 
-        blade_status = bladerf_set_frequency(dev, tx, hops[hop_index].f);
+        blade_status = bladerf_set_frequency(dev, tx, hops[hop_index].freq);
 
         //data_log_stream << (uint8_t)hop_index;
 
@@ -313,14 +313,14 @@ int main(int argc, char** argv)
                 }
 
                 // normal tuning
-                blade_status = bladerf_set_frequency(dev, tx, hops[hop_index].f);
+                blade_status = bladerf_set_frequency(dev, tx, hops[hop_index].freq);
                 if (blade_status != 0)
                 {
-                    std::cout << "Failed to perform frequency change to: " << hops[hop_index].f << " -- blade error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
+                    std::cout << "Failed to perform frequency change to: " << hops[hop_index].freq << " -- blade error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
                 }
 
                 // quicktune
-                //blade_status = bladerf_schedule_retune(dev, tx, BLADERF_RETUNE_NOW, hops[hop_index].f, &hops[hop_index].qt);
+                //blade_status = bladerf_schedule_retune(dev, tx, BLADERF_RETUNE_NOW, hops[hop_index].freq, &hops[hop_index].qt);
                 //if (blade_status != 0)
                 //{
                 //    std::cout << "Failed to perform quick tune to index: " << hop_index << ". blade error: " << std::string(bladerf_strerror(blade_status)) << std::endl;
@@ -371,7 +371,7 @@ int main(int argc, char** argv)
     bladerf_close(dev);
 
     std::cout << "Press Enter to close..." << std::endl;
-    //std::cin.ignore();    
+    std::cin.ignore();    
     
     return 0;
     

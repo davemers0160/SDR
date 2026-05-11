@@ -13,6 +13,7 @@
 #include <libbladeRF.h>
 #include <bladeRF2.h>
 
+#include <num2string.h>
 
 // ----------------------------------------------------------------------------
 inline std::ostream& operator<< (
